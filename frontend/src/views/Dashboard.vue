@@ -240,7 +240,7 @@ async function loadNotifications() {
   try {
     const res = await usageApi.getNotifications({ limit: 10, unreadOnly: true });
     if (res.success) {
-      notifications.value = res.data.list;
+      notifications.value = res.data;
     }
   } catch (e) {}
 }

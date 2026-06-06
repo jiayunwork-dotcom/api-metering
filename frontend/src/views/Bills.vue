@@ -258,8 +258,8 @@ async function loadBills() {
       pageSize: pagination.pageSize,
     });
     if (res.success) {
-      billList.value = res.data.list;
-      pagination.total = res.data.total;
+      billList.value = res.data;
+      pagination.total = res.total;
     }
   } finally {
     loading.value = false;
@@ -270,7 +270,7 @@ async function loadTenants() {
   try {
     const res = await tenantApi.getList({ pageSize: 1000 });
     if (res.success) {
-      tenantList.value = res.data.list;
+      tenantList.value = res.data;
     }
   } catch (e) {}
 }

@@ -38,8 +38,8 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="租户名称" width="160" show-overflow-tooltip />
         <el-table-column prop="code" label="租户编码" width="140" show-overflow-tooltip />
-        <el-table-column prop="email" label="管理员邮箱" show-overflow-tooltip />
-        <el-table-column prop="phone" label="联系电话" width="130" />
+        <el-table-column prop="contactEmail" label="管理员邮箱" show-overflow-tooltip />
+        <el-table-column prop="contactPhone" label="联系电话" width="130" />
         <el-table-column label="配额使用" width="160">
           <template #default="{ row }">
             <div class="quota-progress">
@@ -104,11 +104,11 @@
         <el-form-item label="租户编码" prop="code">
           <el-input v-model="tenantForm.code" placeholder="请输入租户编码(英文)" maxlength="32" />
         </el-form-item>
-        <el-form-item label="管理员邮箱" prop="email">
-          <el-input v-model="tenantForm.email" placeholder="请输入管理员邮箱" />
+        <el-form-item label="管理员邮箱" prop="contactEmail">
+          <el-input v-model="tenantForm.contactEmail" placeholder="请输入管理员邮箱" />
         </el-form-item>
-        <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="tenantForm.phone" placeholder="请输入联系电话" maxlength="20" />
+        <el-form-item label="联系电话" prop="contactPhone">
+          <el-input v-model="tenantForm.contactPhone" placeholder="请输入联系电话" maxlength="20" />
         </el-form-item>
         <el-form-item label="公司名称" prop="companyName">
           <el-input v-model="tenantForm.companyName" placeholder="请输入公司名称" maxlength="100" />
@@ -162,8 +162,8 @@ const tenantForm = reactive({
   id: null,
   name: '',
   code: '',
-  email: '',
-  phone: '',
+  contactEmail: '',
+  contactPhone: '',
   companyName: '',
   taxNumber: '',
   address: '',
@@ -176,11 +176,11 @@ const tenantRules = {
     { required: true, message: '请输入租户编码', trigger: 'blur' },
     { pattern: /^[a-zA-Z0-9_]+$/, message: '只能包含英文、数字和下划线', trigger: 'blur' },
   ],
-  email: [
+  contactEmail: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
   ],
-  phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+  contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
 };
 
 function formatDate(dateStr) {
@@ -208,8 +208,8 @@ async function loadTenants() {
       pageSize: pagination.pageSize,
     });
     if (res.success) {
-      tenantList.value = res.data.list;
-      pagination.total = res.data.total;
+      tenantList.value = res.data;
+      pagination.total = res.total;
     }
   } finally {
     loading.value = false;
@@ -229,8 +229,8 @@ function handleCreate() {
     id: null,
     name: '',
     code: '',
-    email: '',
-    phone: '',
+    contactEmail: '',
+    contactPhone: '',
     companyName: '',
     taxNumber: '',
     address: '',

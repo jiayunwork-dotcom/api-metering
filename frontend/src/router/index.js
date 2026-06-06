@@ -16,6 +16,7 @@ const routes = [
       {
         path: '',
         redirect: '/dashboard',
+        meta: { hidden: true },
       },
       {
         path: 'dashboard',

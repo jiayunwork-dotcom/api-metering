@@ -426,8 +426,8 @@ async function loadRules() {
       pageSize: pagination.pageSize,
     });
     if (res.success) {
-      ruleList.value = res.data.list;
-      pagination.total = res.data.total;
+      ruleList.value = res.data;
+      pagination.total = res.total;
     }
   } finally {
     loading.value = false;
@@ -438,7 +438,7 @@ async function loadApiInterfaces() {
   try {
     const res = await ruleApi.getApiInterfaces();
     if (res.success) {
-      apiInterfaces.value = res.data.list || [];
+      apiInterfaces.value = res.data || [];
     }
   } catch (e) {}
 }
@@ -516,7 +516,7 @@ async function loadHistory(ruleId) {
   try {
     const res = await ruleApi.getHistory(ruleId);
     if (res.success) {
-      historyList.value = res.data.list || [];
+      historyList.value = res.data || [];
     }
   } catch (e) {}
 }

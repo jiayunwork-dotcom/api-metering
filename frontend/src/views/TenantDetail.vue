@@ -316,7 +316,7 @@ async function loadQuotas() {
   try {
     const res = await tenantApi.getQuotas(tenantId);
     if (res.success) {
-      quotas.value = res.data.list || [];
+      quotas.value = res.data || [];
     }
   } finally {
     quotaLoading.value = false;
@@ -328,7 +328,7 @@ async function loadBills() {
   try {
     const res = await billingApi.getBills({ tenantId, pageSize: 100 });
     if (res.success) {
-      bills.value = res.data.list || [];
+      bills.value = res.data || [];
     }
   } finally {
     billLoading.value = false;
@@ -339,7 +339,7 @@ async function loadApiInterfaces() {
   try {
     const res = await ruleApi.getApiInterfaces();
     if (res.success) {
-      apiInterfaces.value = res.data.list || [];
+      apiInterfaces.value = res.data || [];
     }
   } catch (e) {}
 }

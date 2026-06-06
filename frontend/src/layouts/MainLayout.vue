@@ -110,11 +110,11 @@ const userStore = useUserStore();
 
 const activeMenu = computed(() => route.path);
 const currentRoute = computed(() => route);
-const menuRoutes = computed(() =>
-  router.options.routes
-    .find(r => r.path === '/')
-    .children.filter(r => !r.meta.hidden)
-);
+const menuRoutes = computed(() => {
+  const mainRoute = router.options.routes.find(r => r.path === '/');
+  if (!mainRoute || !mainRoute.children) return [];
+  return mainRoute.children.filter(r => !r.meta?.hidden);
+});
 
 const passwordDialogVisible = ref(false);
 const passwordForm = ref({

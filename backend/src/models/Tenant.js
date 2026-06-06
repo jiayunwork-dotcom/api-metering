@@ -25,6 +25,9 @@ const Tenant = sequelize.define('Tenant', {
     type: DataTypes.STRING(100),
     allowNull: false,
   },
+  contactPhone: {
+    type: DataTypes.STRING(20),
+  },
   contactName: {
     type: DataTypes.STRING(50),
   },

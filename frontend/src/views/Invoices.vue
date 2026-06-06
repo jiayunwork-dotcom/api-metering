@@ -192,8 +192,8 @@ async function loadInvoices() {
       pageSize: pagination.pageSize,
     });
     if (res.success) {
-      invoiceList.value = res.data.list;
-      pagination.total = res.data.total;
+      invoiceList.value = res.data;
+      pagination.total = res.total;
     }
   } finally {
     loading.value = false;

@@ -218,7 +218,7 @@ async function loadTenants() {
   try {
     const res = await tenantApi.getList({ pageSize: 1000 });
     if (res.success) {
-      tenantList.value = res.data.list;
+      tenantList.value = res.data;
     }
   } catch (e) {}
 }
@@ -240,8 +240,8 @@ async function loadDeadLetters() {
     
     const res = await meteringApi.getDeadLetters(params);
     if (res.success) {
-      deadLetterList.value = res.data.list;
-      pagination.total = res.data.total;
+      deadLetterList.value = res.data;
+      pagination.total = res.total;
     }
   } finally {
     loading.value = false;

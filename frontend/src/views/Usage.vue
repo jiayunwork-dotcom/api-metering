@@ -215,7 +215,7 @@ async function loadTenants() {
   try {
     const res = await tenantApi.getList({ pageSize: 1000 });
     if (res.success) {
-      tenantList.value = res.data.list;
+      tenantList.value = res.data;
     }
   } catch (e) {}
 }
@@ -224,7 +224,7 @@ async function loadApis() {
   try {
     const res = await ruleApi.getApiInterfaces();
     if (res.success) {
-      apiList.value = res.data.list;
+      apiList.value = res.data;
     }
   } catch (e) {}
 }
@@ -247,11 +247,11 @@ async function loadData() {
       pageSize: pagination.pageSize,
     });
     if (res.success) {
-      usageData.value = res.data.list;
-      pagination.total = res.data.total;
+      usageData.value = res.data;
+      pagination.total = res.total;
       
       if (viewMode.value === 'chart') {
-        renderCharts(res.data.list);
+        renderCharts(res.data);
       }
     }
   } finally {
