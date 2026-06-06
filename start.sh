@@ -5,7 +5,7 @@ echo "  API计量与账单管理系统 - 快速启动脚本"
 echo "=========================================="
 echo ""
 
-echo "[1/5] 检查Docker环境..."
+echo "[1/6] 检查Docker环境..."
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker未安装，请先安装Docker和Docker Compose"
     exit 1
@@ -44,7 +44,11 @@ sleep 10
 echo "✅ 服务就绪"
 echo ""
 
-echo "[5/5] 初始化数据库..."
+echo "[5/6] 执行数据库迁移..."
+docker-compose exec -T backend node src/scripts/addContactPhoneColumn.js
+echo ""
+
+echo "[6/6] 初始化数据库..."
 docker-compose exec -T backend npm run init-db
 echo ""
 

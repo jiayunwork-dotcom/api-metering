@@ -78,6 +78,9 @@ cp .env.example .env
 # 启动所有服务
 docker-compose up -d
 
+# 执行数据库迁移（添加新字段）
+docker-compose exec backend node src/scripts/addContactPhoneColumn.js
+
 # 初始化数据库（首次启动后执行）
 docker-compose exec backend npm run init-db
 ```
