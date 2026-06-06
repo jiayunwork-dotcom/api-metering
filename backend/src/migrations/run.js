@@ -5,7 +5,7 @@ async function runMigrations() {
   try {
     console.log('Starting database migration...');
     
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ force: false });
     console.log('Database tables created/updated successfully');
     
     const adminCount = await User.count({ where: { username: 'admin' } });

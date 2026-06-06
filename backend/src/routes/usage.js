@@ -1,5 +1,5 @@
 import { getUsageData, getTenantCurrentUsage } from '../services/usageAggregationService.js';
-import { getUsageStats } from '../services/meteringEventService.js';
+import { getEventStats } from '../services/meteringEventService.js';
 import { Parser } from 'json2csv';
 import { getNotifications, markNotificationRead } from '../services/quotaService.js';
 

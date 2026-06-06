@@ -1,4 +1,5 @@
 import sequelize from '../config/database.js';
+import { Op, fn, col, literal } from 'sequelize';
 import Tenant from './Tenant.js';
 import ApiInterface from './ApiInterface.js';
 import MeteringRule from './MeteringRule.js';
@@ -54,6 +55,10 @@ Invoice.belongsTo(Bill, { foreignKey: 'billId' });
 
 export {
   sequelize,
+  Op,
+  fn,
+  col,
+  literal,
   Tenant,
   ApiInterface,
   MeteringRule,
