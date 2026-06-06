@@ -13,6 +13,10 @@ import Notification from './Notification.js';
 import DeadLetterEvent from './DeadLetterEvent.js';
 import RuleChangeHistory from './RuleChangeHistory.js';
 import User from './User.js';
+import AlertRule from './AlertRule.js';
+import AlertTriggerHistory from './AlertTriggerHistory.js';
+import CircuitBreakerState from './CircuitBreakerState.js';
+import WebhookConfig from './WebhookConfig.js';
 
 Tenant.hasMany(MeteringEvent, { foreignKey: 'tenantId' });
 MeteringEvent.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -53,6 +57,23 @@ BillItem.belongsTo(Bill, { foreignKey: 'billId' });
 Bill.hasOne(Invoice, { foreignKey: 'billId' });
 Invoice.belongsTo(Bill, { foreignKey: 'billId' });
 
+Tenant.hasMany(AlertRule, { foreignKey: 'tenantId' });
+AlertRule.belongsTo(Tenant, { foreignKey: 'tenantId' });
+AlertRule.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId', as: 'apiInterface' });
+
+Tenant.hasMany(AlertTriggerHistory, { foreignKey: 'tenantId' });
+AlertTriggerHistory.belongsTo(Tenant, { foreignKey: 'tenantId' });
+AlertTriggerHistory.belongsTo(AlertRule, { foreignKey: 'alertRuleId', as: 'alertRule' });
+AlertTriggerHistory.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId', as: 'apiInterface' });
+
+Tenant.hasMany(CircuitBreakerState, { foreignKey: 'tenantId' });
+CircuitBreakerState.belongsTo(Tenant, { foreignKey: 'tenantId' });
+CircuitBreakerState.belongsTo(AlertRule, { foreignKey: 'alertRuleId', as: 'alertRule' });
+CircuitBreakerState.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId', as: 'apiInterface' });
+
+Tenant.hasMany(WebhookConfig, { foreignKey: 'tenantId' });
+WebhookConfig.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
 export {
   sequelize,
   Op,
@@ -72,4 +93,8 @@ export {
   DeadLetterEvent,
   RuleChangeHistory,
   User,
+  AlertRule,
+  AlertTriggerHistory,
+  CircuitBreakerState,
+  WebhookConfig,
 };

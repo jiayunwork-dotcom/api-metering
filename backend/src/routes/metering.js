@@ -2,6 +2,9 @@ import { collectEvents, reprocessDeadLetterEvents, flushEventBuffer } from '../s
 import { checkAndConsumeQuota } from '../services/quotaService.js';
 import { DeadLetterEvent } from '../models/index.js';
 import { Op } from 'sequelize';
+import { checkCircuitBreaker, recordHalfOpenRequest } from '../services/circuitBreakerService.js';
+import { checkRateLimit, acquireToken } from '../services/rateLimitService.js';
+import { AlertRule } from '../models/index.js';
 
 export default async function meteringRoutes(fastify) {
   fastify.post('/api/metering/events', async (request, reply) => {
@@ -34,6 +37,48 @@ export default async function meteringRoutes(fastify) {
       return reply.status(404).send({ allowed: false, reason: 'API not found' });
     }
 
+    const circuitResult = await checkCircuitBreaker(tenant.id, apiInterface.id);
+    if (!circuitResult.allowed) {
+      if (circuitResult.state === 'open') {
+        reply.header('Retry-After', circuitResult.retryAfter);
+        return reply.status(503).send({
+          allowed: false,
+          reason: 'Service temporarily unavailable',
+          state: 'circuit_breaker_open',
+          retryAfter: circuitResult.retryAfter,
+        });
+      } else if (circuitResult.state === 'half_open') {
+        return reply.status(503).send({
+          allowed: false,
+          reason: 'Service in half-open state, please retry later',
+          state: 'circuit_breaker_half_open',
+          retryAfter: circuitResult.remainingTime,
+        });
+      }
+    }
+
+    const isHalfOpen = circuitResult.state === 'half_open';
+
+    const rateLimitCheck = await checkRateLimit(tenant.id, apiInterface.id);
+    if (rateLimitCheck.limited) {
+      const rule = await AlertRule.findByPk(rateLimitCheck.ruleId);
+      if (rule && rule.status === 'active') {
+        const qps = rule.actionConfig?.qps || 10;
+        const burst = rule.actionConfig?.burst || qps * 2;
+        const tokenResult = await acquireToken(tenant.id, apiInterface.id, qps, burst);
+        
+        if (!tokenResult.allowed) {
+          reply.header('Retry-After', tokenResult.retryAfter);
+          return reply.status(429).send({
+            allowed: false,
+            reason: 'Rate limit exceeded',
+            state: 'rate_limited',
+            retryAfter: tokenResult.retryAfter,
+          });
+        }
+      }
+    }
+
     const results = await Promise.all([
       callCount > 0 ? checkAndConsumeQuota(tenant.id, apiInterface.id, 'count', callCount) : null,
       dataMB > 0 ? checkAndConsumeQuota(tenant.id, apiInterface.id, 'data_transfer', dataMB) : null,
@@ -42,11 +87,19 @@ export default async function meteringRoutes(fastify) {
 
     const denied = results.find(r => r && !r.allowed);
     if (denied) {
+      if (isHalfOpen) {
+        await recordHalfOpenRequest(tenant.id, apiInterface.id, false);
+      }
+
       return reply.status(429).send({
         allowed: false,
         reason: denied.reason,
         hardLimit: denied.hardLimit,
       });
+    }
+
+    if (isHalfOpen) {
+      await recordHalfOpenRequest(tenant.id, apiInterface.id, true);
     }
 
     return {

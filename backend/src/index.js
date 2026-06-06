@@ -7,6 +7,8 @@ import { startEventBufferFlush } from './services/meteringEventService.js';
 import { billingQueue } from './config/queue.js';
 import { generateBillsForMonth } from './services/billingService.js';
 import { cleanupOldAggregations } from './services/usageAggregationService.js';
+import { evaluateAllTenants } from './services/alertRuleService.js';
+import { checkExpiredCircuits } from './services/circuitBreakerService.js';
 
 import authRoutes from './routes/auth.js';
 import tenantRoutes from './routes/tenants.js';
@@ -15,6 +17,7 @@ import ruleRoutes from './routes/rules.js';
 import billingRoutes from './routes/billing.js';
 import usageRoutes from './routes/usage.js';
 import dashboardRoutes from './routes/dashboard.js';
+import alertRoutes from './routes/alerts.js';
 
 dotenv.config();
 
@@ -54,9 +57,12 @@ app.register(ruleRoutes);
 app.register(billingRoutes);
 app.register(usageRoutes);
 app.register(dashboardRoutes);
+app.register(alertRoutes);
 
 let billingCronTimer = null;
 let cleanupCronTimer = null;
+let alertEvalTimer = null;
+let circuitCheckTimer = null;
 
 function scheduleMonthlyBilling() {
   const checkBilling = () => {
@@ -80,6 +86,35 @@ function scheduleCleanup() {
   console.log('Aggregation cleanup scheduler started');
 }
 
+function scheduleAlertEvaluation() {
+  alertEvalTimer = setInterval(async () => {
+    try {
+      const results = await evaluateAllTenants();
+      const totalTriggered = results.reduce((sum, r) => sum + (r.triggered || 0), 0);
+      if (totalTriggered > 0) {
+        console.log(`Alert evaluation completed: ${totalTriggered} rules triggered`);
+      }
+    } catch (error) {
+      console.error('Alert evaluation failed:', error);
+    }
+  }, 60 * 1000);
+  console.log('Alert evaluation scheduler started');
+}
+
+function scheduleCircuitBreakerCheck() {
+  circuitCheckTimer = setInterval(async () => {
+    try {
+      const result = await checkExpiredCircuits();
+      if (result.transitioned > 0) {
+        console.log(`Circuit breaker check: ${result.transitioned} circuits transitioned to half-open`);
+      }
+    } catch (error) {
+      console.error('Circuit breaker check failed:', error);
+    }
+  }, 30 * 1000);
+  console.log('Circuit breaker check scheduler started');
+}
+
 const start = async () => {
   try {
     await sequelize.authenticate();
@@ -95,12 +130,19 @@ const start = async () => {
     if (process.env.NODE_ENV === 'production') {
       scheduleMonthlyBilling();
       scheduleCleanup();
+      scheduleAlertEvaluation();
+      scheduleCircuitBreakerCheck();
+    } else {
+      scheduleAlertEvaluation();
+      scheduleCircuitBreakerCheck();
     }
 
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, shutting down...');
       if (billingCronTimer) clearInterval(billingCronTimer);
       if (cleanupCronTimer) clearInterval(cleanupCronTimer);
+      if (alertEvalTimer) clearInterval(alertEvalTimer);
+      if (circuitCheckTimer) clearInterval(circuitCheckTimer);
       await app.close();
       process.exit(0);
     });
@@ -109,6 +151,8 @@ const start = async () => {
       console.log('SIGINT received, shutting down...');
       if (billingCronTimer) clearInterval(billingCronTimer);
       if (cleanupCronTimer) clearInterval(cleanupCronTimer);
+      if (alertEvalTimer) clearInterval(alertEvalTimer);
+      if (circuitCheckTimer) clearInterval(circuitCheckTimer);
       await app.close();
       process.exit(0);
     });

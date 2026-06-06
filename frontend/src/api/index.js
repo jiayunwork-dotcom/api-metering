@@ -103,4 +103,25 @@ export const meteringApi = {
   reprocessDeadLetters: (data) => request.post('/metering/dead-letters/reprocess', data),
 };
 
+export const alertApi = {
+  getRules: (tenantId) => request.get(`/tenants/${tenantId}/alerts/rules`),
+  getRule: (tenantId, ruleId) => request.get(`/tenants/${tenantId}/alerts/rules/${ruleId}`),
+  createRule: (tenantId, data) => request.post(`/tenants/${tenantId}/alerts/rules`, data),
+  updateRule: (tenantId, ruleId, data) => request.put(`/tenants/${tenantId}/alerts/rules/${ruleId}`, data),
+  deleteRule: (tenantId, ruleId) => request.delete(`/tenants/${tenantId}/alerts/rules/${ruleId}`),
+  reorderRules: (tenantId, orderedRuleIds) => request.post(`/tenants/${tenantId}/alerts/rules/reorder`, { orderedRuleIds }),
+  getHistory: (tenantId, params) => request.get(`/tenants/${tenantId}/alerts/history`, { params }),
+  getStatus: (tenantId) => request.get(`/tenants/${tenantId}/alerts/status`),
+  getRateLimitStatus: (tenantId, params) => request.get(`/tenants/${tenantId}/alerts/rate-limit-status`, { params }),
+  clearRateLimit: (tenantId, data) => request.post(`/tenants/${tenantId}/alerts/rate-limit/clear`, data),
+  getCircuitBreakerStatus: (tenantId) => request.get(`/tenants/${tenantId}/alerts/circuit-breaker-status`),
+  closeCircuitBreaker: (tenantId, data) => request.post(`/tenants/${tenantId}/alerts/circuit-breaker/close`, data),
+  evaluateRules: (tenantId, data) => request.post(`/tenants/${tenantId}/alerts/evaluate`, data),
+  getWebhooks: (tenantId) => request.get(`/tenants/${tenantId}/webhooks`),
+  createWebhook: (tenantId, data) => request.post(`/tenants/${tenantId}/webhooks`, data),
+  updateWebhook: (tenantId, webhookId, data) => request.put(`/tenants/${tenantId}/webhooks/${webhookId}`, data),
+  deleteWebhook: (tenantId, webhookId) => request.delete(`/tenants/${tenantId}/webhooks/${webhookId}`),
+  testWebhook: (tenantId, webhookId) => request.post(`/tenants/${tenantId}/webhooks/${webhookId}/test`),
+};
+
 export default request;
