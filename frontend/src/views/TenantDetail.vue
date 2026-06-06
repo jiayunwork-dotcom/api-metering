@@ -1086,7 +1086,7 @@ async function handleDeleteAlertRule(row) {
   }
 }
 
-async function handleRuleSortChange({ newIndex, oldIndex) {
+async function handleRuleSortChange({ newIndex, oldIndex }) {
   if (newIndex === oldIndex) return;
 
   const newOrder = [...alertRules.value];
