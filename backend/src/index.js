@@ -142,11 +142,14 @@ const start = async () => {
     console.log('Database connected successfully');
 
     const port = parseInt(process.env.PORT || '3000');
+    
+    app.addHook('onListen', () => {
+      initReplaySocket(app.server);
+      console.log('WebSocket server initialized for replay progress');
+    });
+    
     await app.listen({ port, host: '0.0.0.0' });
     console.log(`Server running on port ${port}`);
-
-    initReplaySocket(app.server);
-    console.log('WebSocket server initialized for replay progress');
 
     startEventBufferFlush();
     console.log('Event buffer flush started');

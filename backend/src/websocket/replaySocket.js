@@ -10,17 +10,27 @@ function handleUpgrade(request, socket, head) {
     const url = new URL(request.url, `http://${request.headers.host}`);
     const pathname = url.pathname;
     
+    console.log('WebSocket upgrade request for path:', pathname);
+    
     if (pathname !== '/ws/replay') {
-      socket.destroy();
+      console.log('Path mismatch, ignoring upgrade request for:', pathname);
       return;
     }
     
     wss.handleUpgrade(request, socket, head, (ws) => {
+      console.log('WebSocket upgrade completed, emitting connection');
       wss.emit('connection', ws, request);
     });
   } catch (error) {
     console.error('WebSocket upgrade error:', error);
-    socket.destroy();
+    if (!socket.destroyed) {
+      try {
+        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+      } catch (e) {
+        console.error('Error writing error response:', e);
+      }
+      socket.destroy();
+    }
   }
 }
 
@@ -32,9 +42,18 @@ export function initReplaySocket(server) {
   
   serverInstance = server;
   
-  wss = new WebSocketServer({ noServer: true });
+  wss = new WebSocketServer({ noServer: true, clientTracking: false });
+  
+  const listeners = server.listeners('upgrade');
+  console.log(`Existing upgrade listeners: ${listeners.length}`);
+  
+  if (listeners.length > 0) {
+    server.removeAllListeners('upgrade');
+    console.log('Removed existing upgrade listeners');
+  }
   
   server.on('upgrade', handleUpgrade);
+  console.log('Added WebSocket upgrade handler to server');
   
   wss.on('connection', (ws, request) => {
     const clientId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -49,6 +68,7 @@ export function initReplaySocket(server) {
     ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
+        console.log(`Received message from ${clientId}:`, data.type);
         handleClientMessage(clientId, data);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -61,8 +81,8 @@ export function initReplaySocket(server) {
       }
     });
     
-    ws.on('close', () => {
-      console.log(`WebSocket client disconnected: ${clientId}`);
+    ws.on('close', (code, reason) => {
+      console.log(`WebSocket client disconnected: ${clientId}, code: ${code}, reason: ${reason}`);
       clients.delete(clientId);
     });
     
@@ -77,6 +97,7 @@ export function initReplaySocket(server) {
         clientId,
         message: 'Connected to replay progress server',
       }));
+      console.log(`Sent welcome message to ${clientId}`);
     }
   });
   
