@@ -124,4 +124,21 @@ export const alertApi = {
   testWebhook: (tenantId, webhookId) => request.post(`/tenants/${tenantId}/webhooks/${webhookId}/test`),
 };
 
+export const reconciliationApi = {
+  getTasks: (params) => request.get('/reconciliation/tasks', { params }),
+  getTaskDetail: (id) => request.get(`/reconciliation/tasks/${id}`),
+  createTask: (data) => request.post('/reconciliation/tasks', data),
+  
+  getDiffs: (params) => request.get('/reconciliation/diffs', { params }),
+  getDiffDetail: (id) => request.get(`/reconciliation/diffs/${id}`),
+  resolveDiff: (id, data) => request.post(`/reconciliation/diffs/${id}/resolve`, data),
+  batchResolveDiffs: (data) => request.post('/reconciliation/diffs/batch-resolve', data),
+  
+  getDeadLetters: (params) => request.get('/reconciliation/dead-letters', { params }),
+  replayEvents: (data) => request.post('/reconciliation/dead-letters/replay', data),
+  getReplayProgress: (jobId) => request.get(`/reconciliation/replay/progress/${jobId}`),
+  
+  getAuditLogs: (params) => request.get('/reconciliation/audit-logs', { params }),
+};
+
 export default request;

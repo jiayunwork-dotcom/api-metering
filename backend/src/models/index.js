@@ -17,6 +17,9 @@ import AlertRule from './AlertRule.js';
 import AlertTriggerHistory from './AlertTriggerHistory.js';
 import CircuitBreakerState from './CircuitBreakerState.js';
 import WebhookConfig from './WebhookConfig.js';
+import ReconciliationTask from './ReconciliationTask.js';
+import ReconciliationDiff from './ReconciliationDiff.js';
+import ReconciliationAuditLog from './ReconciliationAuditLog.js';
 
 Tenant.hasMany(MeteringEvent, { foreignKey: 'tenantId' });
 MeteringEvent.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -74,6 +77,15 @@ CircuitBreakerState.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId', as: 
 Tenant.hasMany(WebhookConfig, { foreignKey: 'tenantId' });
 WebhookConfig.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
+ReconciliationTask.hasMany(ReconciliationDiff, { foreignKey: 'taskId' });
+ReconciliationDiff.belongsTo(ReconciliationTask, { foreignKey: 'taskId' });
+
+ReconciliationDiff.belongsTo(Tenant, { foreignKey: 'tenantId' });
+ReconciliationDiff.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId' });
+
+ReconciliationAuditLog.belongsTo(ReconciliationTask, { foreignKey: 'taskId' });
+ReconciliationAuditLog.belongsTo(ReconciliationDiff, { foreignKey: 'diffId' });
+
 export {
   sequelize,
   Op,
@@ -97,4 +109,7 @@ export {
   AlertTriggerHistory,
   CircuitBreakerState,
   WebhookConfig,
+  ReconciliationTask,
+  ReconciliationDiff,
+  ReconciliationAuditLog,
 };

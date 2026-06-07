@@ -100,6 +100,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   DataLine, User, Setting, Document, Tickets,
   DataAnalysis, Warning, UserFilled, ArrowDown,
+  Check,
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../stores/user';
 import { authApi } from '../api';

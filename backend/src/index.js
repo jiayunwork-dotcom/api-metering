@@ -2,6 +2,7 @@ import fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 import { sequelize } from './models/index.js';
 import { startEventBufferFlush } from './services/meteringEventService.js';
 import { billingQueue } from './config/queue.js';
@@ -9,6 +10,8 @@ import { generateBillsForMonth } from './services/billingService.js';
 import { cleanupOldAggregations } from './services/usageAggregationService.js';
 import { evaluateAllTenants } from './services/alertRuleService.js';
 import { checkExpiredCircuits } from './services/circuitBreakerService.js';
+import { triggerAutoReconciliation } from './services/reconciliationService.js';
+import { initReplaySocket, closeReplaySocket } from './websocket/replaySocket.js';
 
 import authRoutes from './routes/auth.js';
 import tenantRoutes from './routes/tenants.js';
@@ -18,6 +21,7 @@ import billingRoutes from './routes/billing.js';
 import usageRoutes from './routes/usage.js';
 import dashboardRoutes from './routes/dashboard.js';
 import alertRoutes from './routes/alerts.js';
+import reconciliationRoutes from './routes/reconciliation.js';
 
 dotenv.config();
 
@@ -58,11 +62,13 @@ app.register(billingRoutes);
 app.register(usageRoutes);
 app.register(dashboardRoutes);
 app.register(alertRoutes);
+app.register(reconciliationRoutes, { prefix: '/api/reconciliation' });
 
 let billingCronTimer = null;
 let cleanupCronTimer = null;
 let alertEvalTimer = null;
 let circuitCheckTimer = null;
+let reconciliationCronJob = null;
 
 function scheduleMonthlyBilling() {
   const checkBilling = () => {
@@ -115,6 +121,21 @@ function scheduleCircuitBreakerCheck() {
   console.log('Circuit breaker check scheduler started');
 }
 
+function scheduleDailyReconciliation() {
+  reconciliationCronJob = cron.schedule('0 3 * * *', async () => {
+    try {
+      console.log('Starting daily auto-reconciliation at 03:00');
+      const task = await triggerAutoReconciliation();
+      console.log(`Auto-reconciliation task created: ${task.taskNo}`);
+    } catch (error) {
+      console.error('Daily auto-reconciliation failed:', error);
+    }
+  }, {
+    timezone: 'Asia/Shanghai',
+  });
+  console.log('Daily reconciliation scheduler started (runs at 03:00 every day)');
+}
+
 const start = async () => {
   try {
     await sequelize.authenticate();
@@ -124,6 +145,9 @@ const start = async () => {
     await app.listen({ port, host: '0.0.0.0' });
     console.log(`Server running on port ${port}`);
 
+    initReplaySocket(app.server);
+    console.log('WebSocket server initialized for replay progress');
+
     startEventBufferFlush();
     console.log('Event buffer flush started');
 
@@ -132,9 +156,11 @@ const start = async () => {
       scheduleCleanup();
       scheduleAlertEvaluation();
       scheduleCircuitBreakerCheck();
+      scheduleDailyReconciliation();
     } else {
       scheduleAlertEvaluation();
       scheduleCircuitBreakerCheck();
+      scheduleDailyReconciliation();
     }
 
     process.on('SIGTERM', async () => {
@@ -143,6 +169,8 @@ const start = async () => {
       if (cleanupCronTimer) clearInterval(cleanupCronTimer);
       if (alertEvalTimer) clearInterval(alertEvalTimer);
       if (circuitCheckTimer) clearInterval(circuitCheckTimer);
+      if (reconciliationCronJob) reconciliationCronJob.stop();
+      closeReplaySocket();
       await app.close();
       process.exit(0);
     });
@@ -153,6 +181,8 @@ const start = async () => {
       if (cleanupCronTimer) clearInterval(cleanupCronTimer);
       if (alertEvalTimer) clearInterval(alertEvalTimer);
       if (circuitCheckTimer) clearInterval(circuitCheckTimer);
+      if (reconciliationCronJob) reconciliationCronJob.stop();
+      closeReplaySocket();
       await app.close();
       process.exit(0);
     });

@@ -19,6 +19,8 @@ export const aggregationQueue = new Bull('aggregation', redisConfig);
 export const notificationQueue = new Bull('notification', redisConfig);
 export const emailQueue = new Bull('email', redisConfig);
 export const billingQueue = new Bull('billing', redisConfig);
+export const reconciliationQueue = new Bull('reconciliation', redisConfig);
+export const replayQueue = new Bull('event-replay', redisConfig);
 
 eventPersistenceQueue.on('failed', (job, err) => {
   console.error(`Event persistence job ${job.id} failed:`, err.message);
@@ -40,10 +42,20 @@ billingQueue.on('failed', (job, err) => {
   console.error(`Billing job ${job.id} failed:`, err.message);
 });
 
+reconciliationQueue.on('failed', (job, err) => {
+  console.error(`Reconciliation job ${job.id} failed:`, err.message);
+});
+
+replayQueue.on('failed', (job, err) => {
+  console.error(`Event replay job ${job.id} failed:`, err.message);
+});
+
 export default {
   eventPersistenceQueue,
   aggregationQueue,
   notificationQueue,
   emailQueue,
   billingQueue,
+  reconciliationQueue,
+  replayQueue,
 };

@@ -72,6 +72,12 @@ const routes = [
         component: () => import('../views/DeadLetters.vue'),
         meta: { title: '死信队列', icon: 'Warning' },
       },
+      {
+        path: 'reconciliation',
+        name: 'Reconciliation',
+        component: () => import('../views/Reconciliation.vue'),
+        meta: { title: '数据对账', icon: 'Check' },
+      },
     ],
   },
 ];
