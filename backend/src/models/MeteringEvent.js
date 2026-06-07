@@ -68,11 +68,11 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
     {
       name: 'idx_event_unique',
       unique: true,
-      fields: ['eventId'],
+      fields: ['event_id'],
     },
     {
       name: 'idx_event_tenant_api_month',
-      fields: ['tenantId', 'apiInterfaceId', 'month'],
+      fields: ['tenant_id', 'api_interface_id', 'month'],
     },
     {
       name: 'idx_event_timestamp',
@@ -80,15 +80,15 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
     },
     {
       name: 'idx_event_tenant_month',
-      fields: ['tenantId', 'month'],
+      fields: ['tenant_id', 'month'],
     },
     {
       name: 'idx_event_api_key',
-      fields: ['apiKeyId'],
+      fields: ['api_key_id'],
     },
     {
       name: 'idx_event_tenant_api_key_month',
-      fields: ['tenantId', 'apiKeyId', 'month'],
+      fields: ['tenant_id', 'api_key_id', 'month'],
     },
   ],
 });

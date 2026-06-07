@@ -69,11 +69,11 @@ const WebhookConfig = sequelize.define('WebhookConfig', {
   indexes: [
     {
       name: 'idx_webhook_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_webhook_tenant_url',
-      fields: ['tenantId', 'url'],
+      fields: ['tenant_id', 'url'],
       unique: true,
     },
     {

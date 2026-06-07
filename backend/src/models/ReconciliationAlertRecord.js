@@ -76,7 +76,7 @@ const ReconciliationAlertRecord = sequelize.define('ReconciliationAlertRecord', 
   indexes: [
     {
       name: 'idx_alert_task',
-      fields: ['taskId'],
+      fields: ['task_id'],
     },
     {
       name: 'idx_alert_channel',
@@ -84,11 +84,11 @@ const ReconciliationAlertRecord = sequelize.define('ReconciliationAlertRecord', 
     },
     {
       name: 'idx_alert_status',
-      fields: ['sendStatus'],
+      fields: ['send_status'],
     },
     {
       name: 'idx_alert_time',
-      fields: ['alertTime'],
+      fields: ['alert_time'],
     },
     {
       name: 'idx_alert_read',

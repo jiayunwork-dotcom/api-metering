@@ -67,15 +67,15 @@ const ApiKeyAccessLog = sequelize.define('ApiKeyAccessLog', {
   indexes: [
     {
       name: 'idx_access_log_key',
-      fields: ['apiKeyId'],
+      fields: ['api_key_id'],
     },
     {
       name: 'idx_access_log_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_access_log_type',
-      fields: ['accessType'],
+      fields: ['access_type'],
     },
     {
       name: 'idx_access_log_timestamp',
@@ -83,11 +83,11 @@ const ApiKeyAccessLog = sequelize.define('ApiKeyAccessLog', {
     },
     {
       name: 'idx_access_log_tenant_timestamp',
-      fields: ['tenantId', 'timestamp'],
+      fields: ['tenant_id', 'timestamp'],
     },
     {
       name: 'idx_access_log_key_timestamp',
-      fields: ['apiKeyId', 'timestamp'],
+      fields: ['api_key_id', 'timestamp'],
     },
   ],
 });

@@ -52,11 +52,11 @@ const DeadLetterEvent = sequelize.define('DeadLetterEvent', {
     },
     {
       name: 'idx_dead_letter_tenant_month',
-      fields: ['tenantId', 'month'],
+      fields: ['tenant_id', 'month'],
     },
     {
       name: 'idx_dead_letter_created',
-      fields: ['createdAt'],
+      fields: ['created_at'],
     },
   ],
 });

@@ -61,12 +61,12 @@ const ApiKeyPermission = sequelize.define('ApiKeyPermission', {
   indexes: [
     {
       name: 'idx_api_key_permission_key',
-      fields: ['apiKeyId'],
+      fields: ['api_key_id'],
     },
     {
       name: 'idx_api_key_permission_unique',
       unique: true,
-      fields: ['apiKeyId', 'resource', 'action'],
+      fields: ['api_key_id', 'resource', 'action'],
     },
     {
       name: 'idx_api_key_permission_resource_action',

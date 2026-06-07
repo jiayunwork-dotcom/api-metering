@@ -76,11 +76,11 @@ const BillItem = sequelize.define('BillItem', {
   indexes: [
     {
       name: 'idx_bill_item_bill',
-      fields: ['billId'],
+      fields: ['bill_id'],
     },
     {
       name: 'idx_bill_item_api',
-      fields: ['apiInterfaceId'],
+      fields: ['api_interface_id'],
     },
   ],
 });

@@ -151,7 +151,7 @@ const ReconciliationDiff = sequelize.define('ReconciliationDiff', {
   indexes: [
     {
       name: 'idx_recon_diff_task',
-      fields: ['taskId'],
+      fields: ['task_id'],
     },
     {
       name: 'idx_recon_diff_status',
@@ -163,11 +163,11 @@ const ReconciliationDiff = sequelize.define('ReconciliationDiff', {
     },
     {
       name: 'idx_recon_diff_tenant_api_date',
-      fields: ['tenantId', 'apiInterfaceId', 'dateKey'],
+      fields: ['tenant_id', 'api_interface_id', 'date_key'],
     },
     {
       name: 'idx_recon_diff_type',
-      fields: ['diffType'],
+      fields: ['diff_type'],
     },
     {
       name: 'idx_recon_diff_month',

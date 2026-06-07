@@ -62,7 +62,7 @@ const Notification = sequelize.define('Notification', {
   indexes: [
     {
       name: 'idx_notification_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_notification_type',
@@ -74,7 +74,7 @@ const Notification = sequelize.define('Notification', {
     },
     {
       name: 'idx_notification_email_pending',
-      fields: ['emailSent', 'emailRetryCount'],
+      fields: ['email_sent', 'email_retry_count'],
     },
   ],
 });

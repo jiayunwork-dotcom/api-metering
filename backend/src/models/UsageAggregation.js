@@ -90,15 +90,15 @@ const UsageAggregation = sequelize.define('UsageAggregation', {
     {
       name: 'idx_usage_tenant_api_granularity_period',
       unique: true,
-      fields: ['tenantId', 'apiInterfaceId', 'granularity', 'periodStart'],
+      fields: ['tenant_id', 'api_interface_id', 'granularity', 'period_start'],
     },
     {
       name: 'idx_usage_tenant_month',
-      fields: ['tenantId', 'month'],
+      fields: ['tenant_id', 'month'],
     },
     {
       name: 'idx_usage_granularity_period',
-      fields: ['granularity', 'periodStart'],
+      fields: ['granularity', 'period_start'],
     },
   ],
 });

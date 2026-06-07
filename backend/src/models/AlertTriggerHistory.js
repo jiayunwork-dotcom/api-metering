@@ -65,20 +65,20 @@ const AlertTriggerHistory = sequelize.define('AlertTriggerHistory', {
   indexes: [
     {
       name: 'idx_alert_trigger_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_alert_trigger_rule',
-      fields: ['alertRuleId'],
+      fields: ['alert_rule_id'],
     },
     {
       name: 'idx_alert_trigger_tenant_hour',
-      fields: ['tenantId', 'alertRuleId', 'triggerHour'],
+      fields: ['tenant_id', 'alert_rule_id', 'trigger_hour'],
       unique: true,
     },
     {
       name: 'idx_alert_trigger_time',
-      fields: ['triggeredAt'],
+      fields: ['triggered_at'],
     },
   ],
 });

@@ -86,11 +86,11 @@ const AlertRule = sequelize.define('AlertRule', {
   indexes: [
     {
       name: 'idx_alert_rule_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_alert_rule_tenant_priority',
-      fields: ['tenantId', 'priority'],
+      fields: ['tenant_id', 'priority'],
     },
     {
       name: 'idx_alert_rule_status',

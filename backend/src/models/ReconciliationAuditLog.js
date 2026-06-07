@@ -75,7 +75,7 @@ const ReconciliationAuditLog = sequelize.define('ReconciliationAuditLog', {
   indexes: [
     {
       name: 'idx_audit_operation_type',
-      fields: ['operationType'],
+      fields: ['operation_type'],
     },
     {
       name: 'idx_audit_operator',
@@ -83,15 +83,15 @@ const ReconciliationAuditLog = sequelize.define('ReconciliationAuditLog', {
     },
     {
       name: 'idx_audit_operated_at',
-      fields: ['operatedAt'],
+      fields: ['operated_at'],
     },
     {
       name: 'idx_audit_task',
-      fields: ['taskId'],
+      fields: ['task_id'],
     },
     {
       name: 'idx_audit_diff',
-      fields: ['diffId'],
+      fields: ['diff_id'],
     },
   ],
 });

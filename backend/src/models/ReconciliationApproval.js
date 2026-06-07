@@ -149,15 +149,15 @@ const ReconciliationApproval = sequelize.define('ReconciliationApproval', {
     {
       name: 'idx_approval_no',
       unique: true,
-      fields: ['submissionNo'],
+      fields: ['submission_no'],
     },
     {
       name: 'idx_approval_diff',
-      fields: ['diffId'],
+      fields: ['diff_id'],
     },
     {
       name: 'idx_approval_submitter',
-      fields: ['submitterId'],
+      fields: ['submitter_id'],
     },
     {
       name: 'idx_approval_status',
@@ -165,19 +165,19 @@ const ReconciliationApproval = sequelize.define('ReconciliationApproval', {
     },
     {
       name: 'idx_approval_level',
-      fields: ['approvalLevel'],
+      fields: ['approval_level'],
     },
     {
       name: 'idx_approval_submitted',
-      fields: ['submittedAt'],
+      fields: ['submitted_at'],
     },
     {
       name: 'idx_approval_approver1',
-      fields: ['approver1Id'],
+      fields: ['approver1_id'],
     },
     {
       name: 'idx_approval_approver2',
-      fields: ['approver2Id'],
+      fields: ['approver2_id'],
     },
   ],
 });

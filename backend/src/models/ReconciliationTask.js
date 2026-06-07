@@ -104,7 +104,7 @@ const ReconciliationTask = sequelize.define('ReconciliationTask', {
     {
       name: 'idx_recon_task_no',
       unique: true,
-      fields: ['taskNo'],
+      fields: ['task_no'],
     },
     {
       name: 'idx_recon_status',
@@ -112,11 +112,11 @@ const ReconciliationTask = sequelize.define('ReconciliationTask', {
     },
     {
       name: 'idx_recon_triggered_at',
-      fields: ['triggeredAt'],
+      fields: ['triggered_at'],
     },
     {
       name: 'idx_recon_date_range',
-      fields: ['startDate', 'endDate'],
+      fields: ['start_date', 'end_date'],
     },
   ],
 });

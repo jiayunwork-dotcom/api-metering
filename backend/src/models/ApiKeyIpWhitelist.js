@@ -39,16 +39,16 @@ const ApiKeyIpWhitelist = sequelize.define('ApiKeyIpWhitelist', {
   indexes: [
     {
       name: 'idx_ip_whitelist_key',
-      fields: ['apiKeyId'],
+      fields: ['api_key_id'],
     },
     {
       name: 'idx_ip_whitelist_unique',
       unique: true,
-      fields: ['apiKeyId', 'ipOrCidr'],
+      fields: ['api_key_id', 'ip_or_cidr'],
     },
     {
       name: 'idx_ip_whitelist_ip',
-      fields: ['ipOrCidr'],
+      fields: ['ip_or_cidr'],
     },
   ],
 });

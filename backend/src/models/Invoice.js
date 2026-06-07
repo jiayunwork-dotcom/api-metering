@@ -93,21 +93,21 @@ const Invoice = sequelize.define('Invoice', {
     {
       name: 'idx_invoice_no',
       unique: true,
-      fields: ['invoiceNo'],
+      fields: ['invoice_no'],
     },
     {
       name: 'idx_invoice_bill',
       unique: true,
-      fields: ['billId'],
+      fields: ['bill_id'],
     },
     {
       name: 'idx_invoice_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_invoice_year_sequence',
       unique: true,
-      fields: ['year', 'sequenceNo'],
+      fields: ['year', 'sequence_no'],
     },
   ],
 });

@@ -76,7 +76,7 @@ const CircuitBreakerState = sequelize.define('CircuitBreakerState', {
   indexes: [
     {
       name: 'idx_circuit_breaker_tenant_api',
-      fields: ['tenantId', 'apiInterfaceId'],
+      fields: ['tenant_id', 'api_interface_id'],
       unique: true,
     },
     {
@@ -85,7 +85,7 @@ const CircuitBreakerState = sequelize.define('CircuitBreakerState', {
     },
     {
       name: 'idx_circuit_breaker_cooldown',
-      fields: ['cooldownUntil'],
+      fields: ['cooldown_until'],
     },
   ],
 });

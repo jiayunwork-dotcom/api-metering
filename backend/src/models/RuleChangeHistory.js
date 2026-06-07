@@ -51,15 +51,15 @@ const RuleChangeHistory = sequelize.define('RuleChangeHistory', {
   indexes: [
     {
       name: 'idx_rule_history_rule',
-      fields: ['ruleId'],
+      fields: ['rule_id'],
     },
     {
       name: 'idx_rule_history_api',
-      fields: ['apiInterfaceId'],
+      fields: ['api_interface_id'],
     },
     {
       name: 'idx_rule_history_effective_month',
-      fields: ['effectiveMonth'],
+      fields: ['effective_month'],
     },
   ],
 });

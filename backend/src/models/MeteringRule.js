@@ -66,7 +66,7 @@ const MeteringRule = sequelize.define('MeteringRule', {
     {
       name: 'idx_rule_api_dimension_month',
       unique: true,
-      fields: ['apiInterfaceId', 'dimension', 'effectiveMonth'],
+      fields: ['api_interface_id', 'dimension', 'effective_month'],
     },
     {
       name: 'idx_rule_status',
@@ -74,7 +74,7 @@ const MeteringRule = sequelize.define('MeteringRule', {
     },
     {
       name: 'idx_rule_effective_month',
-      fields: ['effectiveMonth'],
+      fields: ['effective_month'],
     },
   ],
 });

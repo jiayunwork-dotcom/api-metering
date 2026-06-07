@@ -90,12 +90,12 @@ const ApiKey = sequelize.define('ApiKey', {
   indexes: [
     {
       name: 'idx_api_key_tenant',
-      fields: ['tenantId'],
+      fields: ['tenant_id'],
     },
     {
       name: 'idx_api_key_hash',
       unique: true,
-      fields: ['keyHash'],
+      fields: ['key_hash'],
     },
     {
       name: 'idx_api_key_status',
@@ -103,15 +103,15 @@ const ApiKey = sequelize.define('ApiKey', {
     },
     {
       name: 'idx_api_key_expires',
-      fields: ['expiresAt'],
+      fields: ['expires_at'],
     },
     {
       name: 'idx_api_key_rotation_expires',
-      fields: ['rotationExpiresAt'],
+      fields: ['rotation_expires_at'],
     },
     {
       name: 'idx_api_key_tenant_status',
-      fields: ['tenantId', 'status'],
+      fields: ['tenant_id', 'status'],
     },
   ],
 });

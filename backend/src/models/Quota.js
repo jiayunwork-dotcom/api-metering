@@ -61,11 +61,11 @@ const Quota = sequelize.define('Quota', {
     {
       name: 'idx_quota_tenant_api_type_dimension_month',
       unique: true,
-      fields: ['tenantId', 'apiInterfaceId', 'type', 'dimension', 'month'],
+      fields: ['tenant_id', 'api_interface_id', 'type', 'dimension', 'month'],
     },
     {
       name: 'idx_quota_tenant_month',
-      fields: ['tenantId', 'month'],
+      fields: ['tenant_id', 'month'],
     },
   ],
 });

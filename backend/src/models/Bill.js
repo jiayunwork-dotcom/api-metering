@@ -120,12 +120,12 @@ const Bill = sequelize.define('Bill', {
     {
       name: 'idx_bill_no',
       unique: true,
-      fields: ['billNo'],
+      fields: ['bill_no'],
     },
     {
       name: 'idx_bill_tenant_month',
       unique: true,
-      fields: ['tenantId', 'month'],
+      fields: ['tenant_id', 'month'],
     },
     {
       name: 'idx_bill_status',
@@ -134,7 +134,7 @@ const Bill = sequelize.define('Bill', {
     {
       name: 'idx_bill_generation',
       unique: true,
-      fields: ['generationId'],
+      fields: ['generation_id'],
     },
   ],
 });
