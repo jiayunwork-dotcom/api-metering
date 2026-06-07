@@ -34,7 +34,7 @@ export function stopEventBufferFlush() {
   }
 }
 
-export async function collectEvents(events) {
+export async function collectEvents(events, apiKeyId = null) {
   if (!Array.isArray(events) || events.length === 0) {
     return { success: true, processed: 0, duplicates: 0 };
   }
@@ -103,6 +103,7 @@ export async function collectEvents(events) {
         duration: event.duration || 0,
         totalSize,
         isSuccess: event.statusCode >= 200 && event.statusCode < 300,
+        apiKeyId: event.apiKeyId || apiKeyId,
       };
 
       processedEvents.push(processedEvent);
@@ -165,7 +166,7 @@ export async function processEventPersistence(job) {
       ignoreDuplicates: true,
       fields: [
         'eventId', 'tenantId', 'apiInterfaceId', 'timestamp', 'month',
-        'statusCode', 'requestSize', 'responseSize', 'duration', 'isSuccess',
+        'statusCode', 'requestSize', 'responseSize', 'duration', 'isSuccess', 'apiKeyId',
       ],
     });
 

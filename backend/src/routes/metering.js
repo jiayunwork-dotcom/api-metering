@@ -7,18 +7,23 @@ import { checkRateLimit, acquireToken } from '../services/rateLimitService.js';
 import { AlertRule } from '../models/index.js';
 
 export default async function meteringRoutes(fastify) {
-  fastify.post('/api/metering/events', async (request, reply) => {
+  fastify.post('/api/metering/events', {
+    onRequest: fastify.authenticateWithPermission('metering_event', 'write'),
+  }, async (request, reply) => {
     const events = request.body;
     
     try {
-      const result = await collectEvents(events);
+      const apiKeyId = request.apiKey?.id;
+      const result = await collectEvents(events, apiKeyId);
       return { success: true, ...result };
     } catch (error) {
       return reply.status(400).send({ success: false, message: error.message });
     }
   });
 
-  fastify.post('/api/metering/events/check-quota', async (request, reply) => {
+  fastify.post('/api/metering/events/check-quota', {
+    onRequest: fastify.authenticateWithPermission('metering_event', 'read'),
+  }, async (request, reply) => {
     const { tenantCode, apiPath, method, callCount = 1, dataMB = 0, computeSeconds = 0 } = request.body;
 
     const { Tenant, ApiInterface } = await import('../models/index.js');

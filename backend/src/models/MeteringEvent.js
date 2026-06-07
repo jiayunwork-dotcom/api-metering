@@ -65,6 +65,14 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
     defaultValue: true,
     comment: '是否成功调用（状态码2xx）',
   },
+  apiKeyId: {
+    type: DataTypes.UUID,
+    comment: '使用的API密钥ID',
+    references: {
+      model: 'api_keys',
+      key: 'id',
+    },
+  },
 }, {
   tableName: 'metering_events',
   timestamps: false,
@@ -85,6 +93,14 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
     {
       name: 'idx_event_tenant_month',
       fields: ['tenantId', 'month'],
+    },
+    {
+      name: 'idx_event_api_key',
+      fields: ['apiKeyId'],
+    },
+    {
+      name: 'idx_event_tenant_api_key_month',
+      fields: ['tenantId', 'apiKeyId', 'month'],
     },
   ],
 });

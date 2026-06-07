@@ -415,6 +415,163 @@
           </el-col>
         </el-row>
       </el-tab-pane>
+
+      <el-tab-pane label="API密钥" name="api-keys">
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <el-card shadow="hover">
+              <template #header>
+                <div class="card-header-flex">
+                  <div>
+                    <span>API密钥管理</span>
+                    <el-tag type="info" size="small" style="margin-left: 10px">
+                      {{ apiKeys.length }} / {{ maxKeysPerTenant }}
+                    </el-tag>
+                  </div>
+                  <el-button
+                    type="primary"
+                    size="small"
+                    :icon="Plus"
+                    @click="handleAddApiKey"
+                    :disabled="apiKeys.length >= maxKeysPerTenant"
+                  >
+                    创建密钥
+                  </el-button>
+                </div>
+              </template>
+              <el-table :data="apiKeys" v-loading="apiKeyLoading">
+                <el-table-column label="名称" prop="name" min-width="120" />
+                <el-table-column label="前缀" width="150">
+                  <template #default="{ row }">
+                    <code>{{ row.keyPrefix }}****</code>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="getApiKeyStatusColor(row.status)" size="small">
+                      {{ getApiKeyStatusLabel(row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="权限摘要" min-width="150">
+                  <template #default="{ row }">
+                    <span>{{ getPermissionSummary(row.permissions) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="IP白名单" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.ipWhitelistEnabled && row.ipWhitelists?.length > 0" type="warning" size="small">
+                      {{ row.ipWhitelists.length }}个
+                    </el-tag>
+                    <el-tag v-else type="info" size="small">未限制</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="独立配额" width="120" align="right">
+                  <template #default="{ row }">
+                    <span v-if="row.quotaLimit">
+                      {{ row.quotaUsed || 0 }} / {{ row.quotaLimit }}
+                    </span>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="最后使用" width="180">
+                  <template #default="{ row }">
+                    {{ formatDate(row.lastUsedAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="过期时间" width="180">
+                  <template #default="{ row }">
+                    <span v-if="row.expiresAt">{{ formatDate(row.expiresAt) }}</span>
+                    <span v-else>永不过期</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="280" align="center" fixed="right">
+                  <template #default="{ row }">
+                    <el-button type="primary" link size="small" @click="handleViewApiKey(row)">查看</el-button>
+                    <el-button type="primary" link size="small" @click="handleEditApiKey(row)">编辑</el-button>
+                    <el-button
+                      :type="row.status === 'active' ? 'warning' : 'success'"
+                      link
+                      size="small"
+                      @click="handleToggleApiKey(row)"
+                    >
+                      {{ row.status === 'active' ? '禁用' : '启用' }}
+                    </el-button>
+                    <el-button type="info" link size="small" @click="handleRotateApiKey(row)">轮换</el-button>
+                    <el-button type="danger" link size="small" @click="handleDeleteApiKey(row)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20" style="margin-top: 20px" v-if="selectedApiKey">
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>密钥详情</template>
+              <el-descriptions :column="1" border>
+                <el-descriptions-item label="名称">{{ selectedApiKey.name }}</el-descriptions-item>
+                <el-descriptions-item label="前缀">
+                  <code>{{ selectedApiKey.keyPrefix }}****</code>
+                </el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  <el-tag :type="getApiKeyStatusColor(selectedApiKey.status)" size="small">
+                    {{ getApiKeyStatusLabel(selectedApiKey.status) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="创建时间">{{ formatDate(selectedApiKey.createdAt) }}</el-descriptions-item>
+                <el-descriptions-item label="最后使用">{{ formatDate(selectedApiKey.lastUsedAt) }}</el-descriptions-item>
+                <el-descriptions-item label="过期时间">
+                  <span v-if="selectedApiKey.expiresAt">{{ formatDate(selectedApiKey.expiresAt) }}</span>
+                  <span v-else>永不过期</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="独立配额">
+                  <span v-if="selectedApiKey.quotaLimit">
+                    {{ selectedApiKey.quotaUnit }}: {{ selectedApiKey.quotaUsed || 0 }} / {{ selectedApiKey.quotaLimit }}
+                  </span>
+                  <span v-else>共享租户配额</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="IP白名单启用">
+                  {{ selectedApiKey.ipWhitelistEnabled ? '是' : '否' }}
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>
+                <div class="card-header-flex">
+                  <span>访问日志</span>
+                  <el-button size="small" :icon="Refresh" @click="loadApiKeyAccessLogs">刷新</el-button>
+                </div>
+              </template>
+              <el-table :data="apiKeyAccessLogs" v-loading="accessLogLoading" max-height="300">
+                <el-table-column label="时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDate(row.timestamp) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="120">
+                  <template #default="{ row }">
+                    <el-tag :type="row.accessType === 'success' ? 'success' : 'danger'" size="small">
+                      {{ getAccessTypeLabel(row.accessType) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="IP地址" width="130" prop="ipAddress" />
+                <el-table-column label="资源" width="120" prop="resource" />
+                <el-table-column label="动作" width="80" prop="action" />
+                <el-table-column label="原因" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    {{ row.deniedReason || '-' }}
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
     </el-tabs>
 
     <el-dialog
@@ -575,6 +732,193 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmitQuota">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="apiKeyDialogVisible"
+      :title="isEditApiKey ? '编辑密钥' : '创建密钥'"
+      width="700px"
+    >
+      <el-form :model="apiKeyForm" :rules="apiKeyRules" ref="apiKeyFormRef" label-width="120px">
+        <el-form-item label="密钥名称" prop="name">
+          <el-input v-model="apiKeyForm.name" maxlength="100" placeholder="请输入密钥名称/备注" />
+        </el-form-item>
+
+        <el-form-item label="权限配置" prop="permissions">
+          <el-radio-group v-model="apiKeyForm.permissionType" @change="handlePermissionTypeChange">
+            <el-radio value="preset">预设角色</el-radio>
+            <el-radio value="custom">自定义</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item v-if="apiKeyForm.permissionType === 'preset'" label="预设角色" prop="presetRole">
+          <el-select v-model="apiKeyForm.presetRole" style="width: 100%">
+            <el-option
+              v-for="(role, key) in permissionOptions?.presetRoles"
+              :key="key"
+              :label="role.name"
+              :value="key"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item v-if="apiKeyForm.permissionType === 'custom'" label="权限选择" prop="permissions">
+          <el-table :data="permissionTableData" border style="width: 100%">
+            <el-table-column label="资源" prop="resourceLabel" width="150" />
+            <el-table-column label="读" width="80" align="center">
+              <template #default="{ row }">
+                <el-checkbox v-model="row.read" />
+              </template>
+            </el-table-column>
+            <el-table-column label="写" width="80" align="center">
+              <template #default="{ row }">
+                <el-checkbox v-model="row.write" />
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-form-item>
+
+        <el-form-item label="过期时间">
+          <el-radio-group v-model="apiKeyForm.expireType" @change="handleExpireTypeChange">
+            <el-radio value="never">永不过期</el-radio>
+            <el-radio value="custom">自定义</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item v-if="apiKeyForm.expireType === 'custom'" label="过期时间" prop="expiresAt">
+          <el-date-picker
+            v-model="apiKeyForm.expiresAt"
+            type="datetime"
+            placeholder="选择过期时间"
+            style="width: 100%"
+            :disabled-date="disabledDate"
+          />
+        </el-form-item>
+
+        <el-form-item label="IP白名单">
+          <el-switch v-model="apiKeyForm.ipWhitelistEnabled" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+
+        <el-form-item v-if="apiKeyForm.ipWhitelistEnabled" label="IP/CIDR列表" prop="ipWhitelist">
+          <el-select
+            v-model="apiKeyForm.ipWhitelist"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入IP或CIDR，按回车添加，最多20个"
+            style="width: 100%"
+            :multiple-limit="20"
+          >
+            <el-option
+              v-for="ip in apiKeyForm.ipWhitelist"
+              :key="ip"
+              :label="ip"
+              :value="ip"
+            />
+          </el-select>
+          <div style="font-size: 12px; color: #909399; margin-top: 5px">
+            支持单个IP(如192.168.1.1)或CIDR段(如192.168.1.0/24)
+          </div>
+        </el-form-item>
+
+        <el-form-item label="独立配额">
+          <el-switch v-model="apiKeyForm.hasQuota" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+
+        <el-form-item v-if="apiKeyForm.hasQuota" label="配额配置">
+          <el-row :gutter="10">
+            <el-col :span="12">
+              <el-form-item prop="quotaLimit">
+                <el-input-number
+                  v-model="apiKeyForm.quotaLimit"
+                  :min="1"
+                  placeholder="配额值"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item prop="quotaUnit">
+                <el-select v-model="apiKeyForm.quotaUnit" style="width: 100%">
+                  <el-option label="调用次数" value="calls" />
+                  <el-option label="数据量(MB)" value="data_mb" />
+                  <el-option label="计算时长(秒)" value="compute_seconds" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="apiKeyDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmitApiKey">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="apiKeyDisplayVisible"
+      title="密钥创建成功"
+      width="500px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        title="此密钥仅展示一次，请立即保存！"
+        description="关闭后无法再次查看完整密钥值"
+        style="margin-bottom: 20px"
+      />
+      <el-form label-width="80px">
+        <el-form-item label="密钥名称">
+          <span>{{ apiKeyForm.name }}</span>
+        </el-form-item>
+        <el-form-item label="完整密钥">
+          <el-input
+            :model-value="createdApiKey?.fullKey"
+            readonly
+            show-password
+            style="font-family: monospace"
+          >
+            <template #append>
+              <el-button @click="copyApiKey">复制</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="apiKeyDisplayVisible = false">已保存，关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="apiKeyRotateVisible"
+      title="密钥轮换"
+      width="400px"
+    >
+      <el-form :model="rotateForm" :rules="rotateRules" ref="rotateFormRef" label-width="120px">
+        <el-form-item label="当前密钥">
+          <span>{{ rotatingApiKey?.name }} ({{ rotatingApiKey?.keyPrefix }}****)</span>
+        </el-form-item>
+        <el-form-item label="宽限期(小时)" prop="gracePeriodHours">
+          <el-input-number
+            v-model="rotateForm.gracePeriodHours"
+            :min="1"
+            :max="72"
+            :step="1"
+            style="width: 100%"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px">
+            宽限期内新旧密钥同时有效，范围：1-72小时
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="apiKeyRotateVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmitRotate">确定轮换</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -584,7 +928,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Plus, Refresh, Sort } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
-import { tenantApi, ruleApi, billingApi, usageApi, alertApi } from '../api';
+import { tenantApi, ruleApi, billingApi, usageApi, alertApi, apiKeyApi } from '../api';
+import ApiKeyPermission from '../models/ApiKeyPermission.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -622,6 +967,25 @@ const webhookDialogVisible = ref(false);
 const isEditWebhook = ref(false);
 const webhookFormRef = ref();
 const webhookHeadersText = ref('');
+
+const apiKeys = ref([]);
+const apiKeyLoading = ref(false);
+const maxKeysPerTenant = ref(10);
+const selectedApiKey = ref(null);
+const apiKeyAccessLogs = ref([]);
+const accessLogLoading = ref(false);
+const permissionOptions = ref(null);
+const permissionTableData = ref([]);
+
+const apiKeyDialogVisible = ref(false);
+const isEditApiKey = ref(false);
+const apiKeyFormRef = ref();
+const createdApiKey = ref(null);
+const apiKeyDisplayVisible = ref(false);
+
+const apiKeyRotateVisible = ref(false);
+const rotatingApiKey = ref(null);
+const rotateFormRef = ref();
 
 const usageChartRef = ref();
 let usageChart = null;
@@ -707,8 +1071,351 @@ const webhookRules = {
   url: [{ required: true, message: '请输入URL', trigger: 'blur' }],
 };
 
+const apiKeyForm = reactive({
+  id: null,
+  name: '',
+  permissionType: 'preset',
+  presetRole: 'full_access',
+  permissions: [],
+  expireType: 'never',
+  expiresAt: null,
+  ipWhitelistEnabled: false,
+  ipWhitelist: [],
+  hasQuota: false,
+  quotaLimit: null,
+  quotaUnit: 'calls',
+});
+
+const apiKeyRules = {
+  name: [{ required: true, message: '请输入密钥名称', trigger: 'blur' }],
+  presetRole: [{ required: true, message: '请选择预设角色', trigger: 'change' }],
+  permissions: [{ required: true, message: '请选择权限', trigger: 'change' }],
+  expiresAt: [{ required: true, message: '请选择过期时间', trigger: 'change' }],
+  ipWhitelist: [{ required: true, message: '请添加IP白名单', trigger: 'change' }],
+  quotaLimit: [{ required: true, message: '请输入配额值', trigger: 'blur' }],
+  quotaUnit: [{ required: true, message: '请选择配额单位', trigger: 'change' }],
+};
+
+const rotateForm = reactive({
+  gracePeriodHours: 24,
+});
+
+const rotateRules = {
+  gracePeriodHours: [{ required: true, message: '请输入宽限期', trigger: 'blur' }],
+};
+
 function formatDate(dateStr) {
   return dateStr ? new Date(dateStr).toLocaleString('zh-CN') : '-';
+}
+
+function getApiKeyStatusColor(status) {
+  const colors = {
+    active: 'success',
+    disabled: 'info',
+    expired: 'danger',
+    deleted: 'info',
+  };
+  return colors[status] || 'info';
+}
+
+function getApiKeyStatusLabel(status) {
+  const labels = {
+    active: '启用',
+    disabled: '禁用',
+    expired: '已过期',
+    deleted: '已删除',
+  };
+  return labels[status] || status;
+}
+
+function getPermissionSummary(permissions) {
+  if (!permissions || permissions.length === 0) return '无权限';
+
+  const allPerms = permissions.map(p => `${p.resource}:${p.action}`);
+  const allResources = ApiKeyPermission?.RESOURCES || [
+    'metering_event', 'usage_query', 'billing_view',
+    'rule_management', 'tenant_info', 'api_key_management'
+  ];
+  const allActions = ApiKeyPermission?.ACTIONS || ['read', 'write'];
+  const allPossible = allResources.flatMap(r => allActions.map(a => `${r}:${a}`));
+
+  if (allPerms.length === allPossible.length) return '全权限';
+  if (allPerms.every(p => p.endsWith(':read'))) return '只读';
+  if (allPerms.includes('metering_event:write') && allPerms.length <= 2) return '仅上报';
+
+  const readCount = allPerms.filter(p => p.endsWith(':read')).length;
+  const writeCount = allPerms.filter(p => p.endsWith(':write')).length;
+  return `${readCount}读${writeCount}写`;
+}
+
+function getAccessTypeLabel(type) {
+  const labels = {
+    success: '成功',
+    denied_invalid_key: '无效密钥',
+    denied_expired: '已过期',
+    denied_ip: 'IP拒绝',
+    denied_permission: '权限不足',
+    denied_quota: '配额超限',
+    denied_disabled: '已禁用',
+  };
+  return labels[type] || type;
+}
+
+function disabledDate(time) {
+  return time.getTime() < Date.now() - 8.64e7;
+}
+
+async function loadPermissionOptions() {
+  try {
+    const res = await apiKeyApi.getPermissionOptions();
+    if (res.success) {
+      permissionOptions.value = res.data;
+      permissionTableData.value = permissionOptions.value.resources.map(r => ({
+        resource: r,
+        resourceLabel: permissionOptions.value.resourceLabels[r] || r,
+        read: false,
+        write: false,
+      }));
+    }
+  } catch (e) {}
+}
+
+async function loadApiKeys() {
+  apiKeyLoading.value = true;
+  try {
+    const res = await apiKeyApi.list(tenantId, { pageSize: 100 });
+    if (res.success) {
+      apiKeys.value = res.data || [];
+      maxKeysPerTenant.value = res.maxKeysPerTenant || 10;
+    }
+  } finally {
+    apiKeyLoading.value = false;
+  }
+}
+
+async function loadApiKeyAccessLogs() {
+  if (!selectedApiKey.value) return;
+
+  accessLogLoading.value = true;
+  try {
+    const res = await apiKeyApi.getAccessLogs(tenantId, selectedApiKey.value.id, {
+      pageSize: 20,
+    });
+    if (res.success) {
+      apiKeyAccessLogs.value = res.data || [];
+    }
+  } finally {
+    accessLogLoading.value = false;
+  }
+}
+
+function handlePermissionTypeChange() {
+  if (apiKeyForm.permissionType === 'custom' && permissionOptions.value) {
+    permissionTableData.value = permissionOptions.value.resources.map(r => ({
+      resource: r,
+      resourceLabel: permissionOptions.value.resourceLabels[r] || r,
+      read: false,
+      write: false,
+    }));
+  }
+}
+
+function handleExpireTypeChange() {
+  if (apiKeyForm.expireType === 'never') {
+    apiKeyForm.expiresAt = null;
+  }
+}
+
+function handleAddApiKey() {
+  isEditApiKey.value = false;
+  Object.assign(apiKeyForm, {
+    id: null,
+    name: '',
+    permissionType: 'preset',
+    presetRole: 'full_access',
+    permissions: [],
+    expireType: 'never',
+    expiresAt: null,
+    ipWhitelistEnabled: false,
+    ipWhitelist: [],
+    hasQuota: false,
+    quotaLimit: null,
+    quotaUnit: 'calls',
+  });
+  apiKeyDialogVisible.value = true;
+}
+
+function handleEditApiKey(row) {
+  isEditApiKey.value = true;
+  Object.assign(apiKeyForm, {
+    id: row.id,
+    name: row.name,
+    permissionType: 'custom',
+    presetRole: 'full_access',
+    permissions: row.permissions?.map(p => `${p.resource}:${p.action}`) || [],
+    expireType: row.expiresAt ? 'custom' : 'never',
+    expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+    ipWhitelistEnabled: row.ipWhitelistEnabled,
+    ipWhitelist: row.ipWhitelists?.map(ip => ip.ipOrCidr) || [],
+    hasQuota: row.quotaLimit !== null,
+    quotaLimit: row.quotaLimit,
+    quotaUnit: row.quotaUnit || 'calls',
+  });
+
+  if (permissionOptions.value) {
+    permissionTableData.value = permissionOptions.value.resources.map(r => ({
+      resource: r,
+      resourceLabel: permissionOptions.value.resourceLabels[r] || r,
+      read: apiKeyForm.permissions.includes(`${r}:read`),
+      write: apiKeyForm.permissions.includes(`${r}:write`),
+    }));
+  }
+
+  apiKeyDialogVisible.value = true;
+}
+
+async function handleSubmitApiKey() {
+  if (!apiKeyFormRef.value) return;
+
+  await apiKeyFormRef.value.validate(async (valid) => {
+    if (!valid) return;
+
+    const submitData = {
+      name: apiKeyForm.name,
+      expiresAt: apiKeyForm.expireType === 'custom' ? apiKeyForm.expiresAt : null,
+      ipWhitelistEnabled: apiKeyForm.ipWhitelistEnabled,
+      ipWhitelist: apiKeyForm.ipWhitelistEnabled ? apiKeyForm.ipWhitelist : [],
+      quotaLimit: apiKeyForm.hasQuota ? apiKeyForm.quotaLimit : null,
+      quotaUnit: apiKeyForm.hasQuota ? apiKeyForm.quotaUnit : null,
+    };
+
+    if (apiKeyForm.permissionType === 'preset') {
+      submitData.presetRole = apiKeyForm.presetRole;
+    } else {
+      const perms = [];
+      permissionTableData.value.forEach(row => {
+        if (row.read) perms.push(`${row.resource}:read`);
+        if (row.write) perms.push(`${row.resource}:write`);
+      });
+      if (perms.length === 0) {
+        ElMessage.error('请至少选择一项权限');
+        return;
+      }
+      submitData.permissions = perms;
+    }
+
+    submitting.value = true;
+    try {
+      if (isEditApiKey.value) {
+        const res = await apiKeyApi.update(tenantId, apiKeyForm.id, submitData);
+        if (res.success) {
+          ElMessage.success('修改成功');
+          apiKeyDialogVisible.value = false;
+          loadApiKeys();
+          if (selectedApiKey.value?.id === apiKeyForm.id) {
+            selectedApiKey.value = res.data;
+          }
+        }
+      } else {
+        const res = await apiKeyApi.create(tenantId, submitData);
+        if (res.success) {
+          createdApiKey.value = res.data;
+          apiKeyDialogVisible.value = false;
+          apiKeyDisplayVisible.value = true;
+          loadApiKeys();
+        }
+      }
+    } finally {
+      submitting.value = false;
+    }
+  });
+}
+
+async function handleViewApiKey(row) {
+  selectedApiKey.value = row;
+  loadApiKeyAccessLogs();
+}
+
+async function handleToggleApiKey(row) {
+  try {
+    const action = row.status === 'active' ? '禁用' : '启用';
+    await ElMessageBox.confirm(`确定要${action}这把密钥吗？`, `${action}确认`, {
+      type: 'warning',
+    });
+
+    const res = await apiKeyApi.toggle(tenantId, row.id);
+    if (res.success) {
+      ElMessage.success(`${action}成功`);
+      row.status = res.status;
+      if (selectedApiKey.value?.id === row.id) {
+        selectedApiKey.value.status = res.status;
+      }
+    }
+  } catch {}
+}
+
+async function handleDeleteApiKey(row) {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这把密钥吗？删除后不可恢复！',
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        confirmButtonClass: 'el-button--danger',
+      }
+    );
+
+    const res = await apiKeyApi.remove(tenantId, row.id);
+    if (res.success) {
+      ElMessage.success('删除成功');
+      loadApiKeys();
+      if (selectedApiKey.value?.id === row.id) {
+        selectedApiKey.value = null;
+      }
+    }
+  } catch {}
+}
+
+function handleRotateApiKey(row) {
+  rotatingApiKey.value = row;
+  rotateForm.gracePeriodHours = 24;
+  apiKeyRotateVisible.value = true;
+}
+
+async function handleSubmitRotate() {
+  if (!rotateFormRef.value) return;
+
+  await rotateFormRef.value.validate(async (valid) => {
+    if (!valid) return;
+
+    submitting.value = true;
+    try {
+      const res = await apiKeyApi.rotate(tenantId, rotatingApiKey.value.id, {
+        gracePeriodHours: rotateForm.gracePeriodHours,
+      });
+      if (res.success) {
+        createdApiKey.value = res.data.newKey;
+        apiKeyRotateVisible.value = false;
+        apiKeyDisplayVisible.value = true;
+        loadApiKeys();
+        ElMessage.success(`轮换成功，宽限期 ${rotateForm.gracePeriodHours} 小时`);
+      }
+    } finally {
+      submitting.value = false;
+    }
+  });
+}
+
+async function copyApiKey() {
+  if (createdApiKey.value?.fullKey) {
+    try {
+      await navigator.clipboard.writeText(createdApiKey.value.fullKey);
+      ElMessage.success('已复制到剪贴板');
+    } catch {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  }
 }
 
 function getQuotaTypeColor(type) {
@@ -1225,6 +1932,8 @@ onMounted(async () => {
     loadBills(),
     loadApiInterfaces(),
     loadWebhooks(),
+    loadPermissionOptions(),
+    loadApiKeys(),
   ]);
   loadUsageTrend();
   loadAlertStatus();

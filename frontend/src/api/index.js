@@ -157,4 +157,25 @@ export const reconciliationApi = {
   getApprovals: (params) => request.get('/reconciliation/approvals', { params }),
 };
 
+export const apiKeyApi = {
+  getPermissionOptions: () => request.get('/api-key/permissions/options'),
+
+  list: (tenantId, params) => request.get(`/tenants/${tenantId}/api-keys`, { params }),
+  getDetail: (tenantId, id) => request.get(`/tenants/${tenantId}/api-keys/${id}`),
+  create: (tenantId, data) => request.post(`/tenants/${tenantId}/api-keys`, data),
+  update: (tenantId, id, data) => request.put(`/tenants/${tenantId}/api-keys/${id}`, data),
+  toggle: (tenantId, id) => request.post(`/tenants/${tenantId}/api-keys/${id}/toggle`),
+  remove: (tenantId, id) => request.delete(`/tenants/${tenantId}/api-keys/${id}`),
+  rotate: (tenantId, id, data) => request.post(`/tenants/${tenantId}/api-keys/${id}/rotate`, data),
+
+  getAccessLogs: (tenantId, apiKeyId, params) =>
+    request.get(`/tenants/${tenantId}/api-keys/${apiKeyId}/access-logs`, { params }),
+
+  getAllAccessLogs: (tenantId, params) =>
+    request.get(`/tenants/${tenantId}/api-keys/access-logs`, { params }),
+
+  getUsageStats: (tenantId, apiKeyId, params) =>
+    request.get(`/tenants/${tenantId}/api-keys/${apiKeyId}/usage-stats`, { params }),
+};
+
 export default request;

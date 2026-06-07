@@ -8,7 +8,9 @@ import fs from 'fs';
 import path from 'path';
 
 export default async function billingRoutes(fastify) {
-  fastify.get('/api/bills', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/bills', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request) => {
     const { page = 1, pageSize = 50, tenantId, month, status, isZeroBill } = request.query;
     
     const result = await listBills({
@@ -29,7 +31,9 @@ export default async function billingRoutes(fastify) {
     };
   });
 
-  fastify.get('/api/bills/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/bills/:id', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request, reply) => {
     const bill = await getBillDetails(request.params.id);
     if (!bill) {
       return reply.status(404).send({ success: false, message: '账单不存在' });
@@ -61,7 +65,9 @@ export default async function billingRoutes(fastify) {
     }
   });
 
-  fastify.get('/api/bills/export/csv', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/bills/export/csv', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request, reply) => {
     const { month, tenantId, status } = request.query;
     
     const result = await listBills({
@@ -97,7 +103,9 @@ export default async function billingRoutes(fastify) {
     return '\uFEFF' + csv;
   });
 
-  fastify.get('/api/invoices', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/invoices', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request) => {
     const { page = 1, pageSize = 50, tenantId, year, status } = request.query;
     
     const result = await listInvoices({
@@ -117,7 +125,9 @@ export default async function billingRoutes(fastify) {
     };
   });
 
-  fastify.get('/api/invoices/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/invoices/:id', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request, reply) => {
     const invoice = await getInvoiceDetails(request.params.id);
     if (!invoice) {
       return reply.status(404).send({ success: false, message: '发票不存在' });
@@ -135,7 +145,9 @@ export default async function billingRoutes(fastify) {
     }
   });
 
-  fastify.get('/api/invoices/:id/pdf', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/invoices/:id/pdf', {
+    onRequest: fastify.authenticateWithPermission('billing_view', 'read'),
+  }, async (request, reply) => {
     try {
       const pdfPath = await generateInvoicePdf(request.params.id);
       

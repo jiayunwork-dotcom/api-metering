@@ -4,7 +4,9 @@ import { Parser } from 'json2csv';
 import { getNotifications, markNotificationRead } from '../services/quotaService.js';
 
 export default async function usageRoutes(fastify) {
-  fastify.get('/api/usage/query', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/usage/query', {
+    onRequest: fastify.authenticateWithPermission('usage_query', 'read'),
+  }, async (request) => {
     const { tenantId, apiInterfaceId, granularity = 'day', startDate, endDate, view = 'chart' } = request.query;
     
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -33,7 +35,9 @@ export default async function usageRoutes(fastify) {
     };
   });
 
-  fastify.get('/api/usage/export', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/usage/export', {
+    onRequest: fastify.authenticateWithPermission('usage_query', 'read'),
+  }, async (request, reply) => {
     const { tenantId, apiInterfaceId, granularity = 'day', startDate, endDate } = request.query;
     
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -64,7 +68,9 @@ export default async function usageRoutes(fastify) {
     return '\uFEFF' + csv;
   });
 
-  fastify.get('/api/usage/tenant/:tenantId/current', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/usage/tenant/:tenantId/current', {
+    onRequest: fastify.authenticateWithPermission('usage_query', 'read'),
+  }, async (request) => {
     const usage = await getTenantCurrentUsage(request.params.tenantId, request.query.month);
     return { success: true, data: usage };
   });

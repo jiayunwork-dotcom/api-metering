@@ -1,5 +1,6 @@
 import { sequelize, User } from '../models/index.js';
 import crypto from 'crypto';
+import { up as apiKeyMigrationUp } from './003_add_api_key_management.js';
 
 async function runMigrations() {
   try {
@@ -7,6 +8,13 @@ async function runMigrations() {
     
     await sequelize.sync({ force: false });
     console.log('Database tables created/updated successfully');
+    
+    try {
+      await apiKeyMigrationUp();
+      console.log('API Key management migration completed');
+    } catch (error) {
+      console.warn('API Key migration may have already run:', error.message);
+    }
     
     const adminCount = await User.count({ where: { username: 'admin' } });
     if (adminCount === 0) {

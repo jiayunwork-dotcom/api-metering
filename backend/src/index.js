@@ -12,6 +12,8 @@ import { evaluateAllTenants } from './services/alertRuleService.js';
 import { checkExpiredCircuits } from './services/circuitBreakerService.js';
 import { triggerAutoReconciliation } from './services/reconciliationService.js';
 import { initReplaySocket, closeReplaySocket } from './websocket/replaySocket.js';
+import { checkExpiredKeys, checkExpiredRotations } from './services/apiKeyService.js';
+import { createAuthMiddleware } from './middleware/auth.js';
 
 import authRoutes from './routes/auth.js';
 import tenantRoutes from './routes/tenants.js';
@@ -22,6 +24,7 @@ import usageRoutes from './routes/usage.js';
 import dashboardRoutes from './routes/dashboard.js';
 import alertRoutes from './routes/alerts.js';
 import reconciliationRoutes from './routes/reconciliation.js';
+import apiKeyRoutes from './routes/apiKeys.js';
 
 dotenv.config();
 
@@ -39,13 +42,9 @@ app.register(jwt, {
   secret: process.env.JWT_SECRET || 'default-secret-key-change-in-production',
 });
 
-app.decorate('authenticate', async (request, reply) => {
-  try {
-    await request.jwtVerify();
-  } catch (err) {
-    reply.status(401).send({ success: false, message: '未授权访问' });
-  }
-});
+const authMiddleware = createAuthMiddleware(app);
+app.decorate('authenticate', authMiddleware.authenticate);
+app.decorate('authenticateWithPermission', authMiddleware.withPermission);
 
 app.get('/health', async () => {
   return {
@@ -63,8 +62,10 @@ app.register(usageRoutes);
 app.register(dashboardRoutes);
 app.register(alertRoutes);
 app.register(reconciliationRoutes, { prefix: '/api/reconciliation' });
+app.register(apiKeyRoutes);
 
 let billingCronTimer = null;
+let apiKeyExpiryTimer = null;
 let cleanupCronTimer = null;
 let alertEvalTimer = null;
 let circuitCheckTimer = null;
@@ -121,6 +122,26 @@ function scheduleCircuitBreakerCheck() {
   console.log('Circuit breaker check scheduler started');
 }
 
+function scheduleApiKeyExpiryCheck() {
+  apiKeyExpiryTimer = setInterval(async () => {
+    try {
+      const [expiredKeys, expiredRotations] = await Promise.all([
+        checkExpiredKeys(),
+        checkExpiredRotations(),
+      ]);
+      if (expiredKeys.expiredCount > 0) {
+        console.log(`API Key expiry check: ${expiredKeys.expiredCount} keys expired`);
+      }
+      if (expiredRotations.expiredCount > 0) {
+        console.log(`API Key rotation check: ${expiredRotations.expiredCount} rotations expired`);
+      }
+    } catch (error) {
+      console.error('API Key expiry check failed:', error);
+    }
+  }, 60 * 60 * 1000);
+  console.log('API Key expiry check scheduler started');
+}
+
 function scheduleDailyReconciliation() {
   reconciliationCronJob = cron.schedule('0 3 * * *', async () => {
     try {
@@ -160,10 +181,12 @@ const start = async () => {
       scheduleAlertEvaluation();
       scheduleCircuitBreakerCheck();
       scheduleDailyReconciliation();
+      scheduleApiKeyExpiryCheck();
     } else {
       scheduleAlertEvaluation();
       scheduleCircuitBreakerCheck();
       scheduleDailyReconciliation();
+      scheduleApiKeyExpiryCheck();
     }
 
     process.on('SIGTERM', async () => {
@@ -173,6 +196,7 @@ const start = async () => {
       if (alertEvalTimer) clearInterval(alertEvalTimer);
       if (circuitCheckTimer) clearInterval(circuitCheckTimer);
       if (reconciliationCronJob) reconciliationCronJob.stop();
+      if (apiKeyExpiryTimer) clearInterval(apiKeyExpiryTimer);
       closeReplaySocket();
       await app.close();
       process.exit(0);
@@ -185,6 +209,7 @@ const start = async () => {
       if (alertEvalTimer) clearInterval(alertEvalTimer);
       if (circuitCheckTimer) clearInterval(circuitCheckTimer);
       if (reconciliationCronJob) reconciliationCronJob.stop();
+      if (apiKeyExpiryTimer) clearInterval(apiKeyExpiryTimer);
       closeReplaySocket();
       await app.close();
       process.exit(0);

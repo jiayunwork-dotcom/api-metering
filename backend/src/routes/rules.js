@@ -5,7 +5,9 @@ import {
 import { ApiInterface } from '../models/index.js';
 
 export default async function ruleRoutes(fastify) {
-  fastify.get('/api/rules', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/rules', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'read'),
+  }, async (request) => {
     const { page = 1, pageSize = 50, apiInterfaceId, dimension, status, effectiveMonth } = request.query;
     
     const result = await listRules({
@@ -26,7 +28,9 @@ export default async function ruleRoutes(fastify) {
     };
   });
 
-  fastify.get('/api/rules/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/rules/:id', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'read'),
+  }, async (request, reply) => {
     const { MeteringRule } = await import('../models/index.js');
     const rule = await MeteringRule.findByPk(request.params.id, {
       include: [{ model: ApiInterface }],
@@ -39,7 +43,9 @@ export default async function ruleRoutes(fastify) {
     return { success: true, data: rule };
   });
 
-  fastify.post('/api/rules', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/rules', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'write'),
+  }, async (request, reply) => {
     try {
       const rule = await createRule(request.body, request.user.username);
       return { success: true, data: rule };
@@ -48,7 +54,9 @@ export default async function ruleRoutes(fastify) {
     }
   });
 
-  fastify.put('/api/rules/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/rules/:id', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'write'),
+  }, async (request, reply) => {
     try {
       const rule = await updateRule(request.params.id, request.body, request.user.username);
       return { success: true, data: rule };
@@ -57,7 +65,9 @@ export default async function ruleRoutes(fastify) {
     }
   });
 
-  fastify.post('/api/rules/:id/activate', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/rules/:id/activate', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'write'),
+  }, async (request, reply) => {
     try {
       const rule = await activateRule(request.params.id, request.user.username);
       return { success: true, data: rule };
@@ -66,7 +76,9 @@ export default async function ruleRoutes(fastify) {
     }
   });
 
-  fastify.post('/api/rules/:id/archive', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/rules/:id/archive', {
+    onRequest: fastify.authenticateWithPermission('rule_management', 'write'),
+  }, async (request, reply) => {
     try {
       const rule = await archiveRule(request.params.id, request.user.username);
       return { success: true, data: rule };

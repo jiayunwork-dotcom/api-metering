@@ -4,7 +4,9 @@ import { getQuotaUsage } from '../services/quotaService.js';
 import { getTenantCurrentUsage } from '../services/usageAggregationService.js';
 
 export default async function tenantRoutes(fastify) {
-  fastify.get('/api/tenants', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/tenants', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'read'),
+  }, async (request) => {
     const { page = 1, pageSize = 50, keyword, status } = request.query;
     
     const where = {};
@@ -32,7 +34,9 @@ export default async function tenantRoutes(fastify) {
     };
   });
 
-  fastify.get('/api/tenants/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/tenants/:id', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'read'),
+  }, async (request, reply) => {
     const tenant = await Tenant.findByPk(request.params.id);
     if (!tenant) {
       return reply.status(404).send({ success: false, message: '租户不存在' });
@@ -57,12 +61,16 @@ export default async function tenantRoutes(fastify) {
     };
   });
 
-  fastify.post('/api/tenants', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.post('/api/tenants', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'write'),
+  }, async (request) => {
     const tenant = await Tenant.create(request.body);
     return { success: true, data: tenant };
   });
 
-  fastify.put('/api/tenants/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/tenants/:id', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'write'),
+  }, async (request, reply) => {
     const tenant = await Tenant.findByPk(request.params.id);
     if (!tenant) {
       return reply.status(404).send({ success: false, message: '租户不存在' });
@@ -84,12 +92,16 @@ export default async function tenantRoutes(fastify) {
     return { success: true, data: tenant };
   });
 
-  fastify.get('/api/tenants/:id/quotas', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.get('/api/tenants/:id/quotas', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'read'),
+  }, async (request) => {
     const quotas = await getQuotaUsage(request.params.id, request.query.month);
     return { success: true, data: quotas };
   });
 
-  fastify.post('/api/tenants/:id/quotas', { onRequest: [fastify.authenticate] }, async (request) => {
+  fastify.post('/api/tenants/:id/quotas', {
+    onRequest: fastify.authenticateWithPermission('tenant_info', 'write'),
+  }, async (request) => {
     const quota = await Quota.create({
       ...request.body,
       tenantId: request.params.id,

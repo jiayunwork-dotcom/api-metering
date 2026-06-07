@@ -23,6 +23,10 @@ import ReconciliationAuditLog from './ReconciliationAuditLog.js';
 import ReconciliationAlertConfig from './ReconciliationAlertConfig.js';
 import ReconciliationAlertRecord from './ReconciliationAlertRecord.js';
 import ReconciliationApproval from './ReconciliationApproval.js';
+import ApiKey from './ApiKey.js';
+import ApiKeyPermission from './ApiKeyPermission.js';
+import ApiKeyIpWhitelist from './ApiKeyIpWhitelist.js';
+import ApiKeyAccessLog from './ApiKeyAccessLog.js';
 
 Tenant.hasMany(MeteringEvent, { foreignKey: 'tenantId' });
 MeteringEvent.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -98,6 +102,24 @@ ReconciliationApproval.belongsTo(User, { foreignKey: 'approver2Id', as: 'approve
 
 ReconciliationDiff.hasMany(ReconciliationApproval, { foreignKey: 'diffId' });
 
+Tenant.hasMany(ApiKey, { foreignKey: 'tenantId' });
+ApiKey.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+ApiKey.hasMany(ApiKeyPermission, { foreignKey: 'apiKeyId', as: 'permissions' });
+ApiKeyPermission.belongsTo(ApiKey, { foreignKey: 'apiKeyId' });
+
+ApiKey.hasMany(ApiKeyIpWhitelist, { foreignKey: 'apiKeyId', as: 'ipWhitelists' });
+ApiKeyIpWhitelist.belongsTo(ApiKey, { foreignKey: 'apiKeyId' });
+
+ApiKey.hasMany(ApiKeyAccessLog, { foreignKey: 'apiKeyId', as: 'accessLogs' });
+ApiKeyAccessLog.belongsTo(ApiKey, { foreignKey: 'apiKeyId' });
+
+ApiKey.hasMany(MeteringEvent, { foreignKey: 'apiKeyId' });
+MeteringEvent.belongsTo(ApiKey, { foreignKey: 'apiKeyId' });
+
+ApiKey.belongsTo(ApiKey, { foreignKey: 'replacedByKeyId', as: 'replacedByKey' });
+ApiKey.hasMany(ApiKey, { foreignKey: 'replacedByKeyId', as: 'replacedKeys' });
+
 export {
   sequelize,
   Op,
@@ -127,4 +149,8 @@ export {
   ReconciliationAlertConfig,
   ReconciliationAlertRecord,
   ReconciliationApproval,
+  ApiKey,
+  ApiKeyPermission,
+  ApiKeyIpWhitelist,
+  ApiKeyAccessLog,
 };
