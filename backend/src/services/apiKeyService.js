@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { Op } from 'sequelize';
-import { ApiKey, ApiKeyPermission, ApiKeyIpWhitelist, ApiKeyAccessLog, sequelize } from '../models/index.js';
+import { ApiKey, ApiKeyPermission, ApiKeyIpWhitelist, ApiKeyAccessLog, MeteringEvent, sequelize } from '../models/index.js';
 import redis from '../config/redis.js';
 
-const MAX_KEYS_PER_TENANT = 10;
-const KEY_PREFIX = 'sk_live_';
+export const MAX_KEYS_PER_TENANT = 10;
+export const KEY_PREFIX = 'sk_live_';
 const KEY_LENGTH = 32;
 const CACHE_TTL = 3600;
 
@@ -13,7 +13,7 @@ function generateApiKey() {
   return `${KEY_PREFIX}${randomPart}`;
 }
 
-function hashApiKey(apiKey) {
+export function hashApiKey(apiKey) {
   return crypto.createHash('sha256').update(apiKey).digest('hex');
 }
 
@@ -47,7 +47,7 @@ function isIpInRange(ip, cidr) {
   return ip === cidr;
 }
 
-function isIpInWhitelist(ip, whitelist) {
+export function isIpInWhitelist(ip, whitelist) {
   if (!whitelist || whitelist.length === 0) {
     return true;
   }
@@ -591,6 +591,188 @@ export async function getKeyUsageStats(tenantId, apiKeyId, startDate, endDate) {
   };
 }
 
+export async function getApiKeyUsageStats(tenantId, options = {}) {
+  const { granularity = 'hour', days = 7, apiKeyIds = [] } = options;
+
+  const now = new Date();
+  const startTime = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+  const dateTrunc = granularity === 'hour' ? 'hour' : 'day';
+  const dateFormat = granularity === 'hour' ? 'YYYY-MM-DD HH:00:00' : 'YYYY-MM-DD';
+
+  const where = {
+    tenantId,
+    timestamp: {
+      [Op.gte]: startTime,
+      [Op.lte]: now,
+    },
+  };
+
+  if (apiKeyIds && apiKeyIds.length > 0) {
+    where.apiKeyId = { [Op.in]: apiKeyIds };
+  }
+
+  const results = await MeteringEvent.findAll({
+    where,
+    attributes: [
+      'apiKeyId',
+      [sequelize.fn('date_trunc', dateTrunc, sequelize.col('timestamp')), 'timeBucket'],
+      [sequelize.fn('COUNT', sequelize.col('id')), 'callCount'],
+    ],
+    group: ['apiKeyId', 'timeBucket'],
+    order: [['timeBucket', 'ASC']],
+    raw: true,
+  });
+
+  const apiKeys = await ApiKey.findAll({
+    where: {
+      tenantId,
+      status: { [Op.ne]: 'deleted' },
+      ...(apiKeyIds && apiKeyIds.length > 0 ? { id: { [Op.in]: apiKeyIds } } : {}),
+    },
+    attributes: ['id', 'name', 'keyPrefix'],
+    raw: true,
+  });
+
+  const keyMap = apiKeys.reduce((acc, key) => {
+    acc[key.id] = key;
+    return acc;
+  }, {});
+
+  const timeBuckets = [];
+  let currentTime = new Date(startTime);
+  if (granularity === 'hour') {
+    currentTime.setMinutes(0, 0, 0);
+    while (currentTime <= now) {
+      timeBuckets.push(new Date(currentTime));
+      currentTime.setHours(currentTime.getHours() + 1);
+    }
+  } else {
+    currentTime.setHours(0, 0, 0, 0);
+    while (currentTime <= now) {
+      timeBuckets.push(new Date(currentTime));
+      currentTime.setDate(currentTime.getDate() + 1);
+    }
+  }
+
+  const formattedBuckets = timeBuckets.map(t => t.toISOString().slice(0, granularity === 'hour' ? 13 : 10));
+
+  const statsByKey = {};
+  results.forEach(row => {
+    const keyId = row.apiKeyId;
+    if (!keyId || !keyMap[keyId]) return;
+
+    if (!statsByKey[keyId]) {
+      statsByKey[keyId] = {
+        apiKeyId: keyId,
+        apiKeyName: keyMap[keyId].name,
+        keyPrefix: keyMap[keyId].keyPrefix,
+        data: formattedBuckets.map(bucket => ({ time: bucket, count: 0 })),
+      };
+    }
+
+    const bucket = row.timeBucket.toISOString().slice(0, granularity === 'hour' ? 13 : 10);
+    const idx = formattedBuckets.indexOf(bucket);
+    if (idx !== -1) {
+      statsByKey[keyId].data[idx].count = parseInt(row.callCount);
+    }
+  });
+
+  Object.keys(keyMap).forEach(keyId => {
+    if (!statsByKey[keyId]) {
+      statsByKey[keyId] = {
+        apiKeyId: keyId,
+        apiKeyName: keyMap[keyId].name,
+        keyPrefix: keyMap[keyId].keyPrefix,
+        data: formattedBuckets.map(bucket => ({ time: bucket, count: 0 })),
+      };
+    }
+  });
+
+  return {
+    timeBuckets: formattedBuckets,
+    stats: Object.values(statsByKey),
+  };
+}
+
+export async function getAnomalyEvents(tenantId, options = {}) {
+  const { limit = 20, apiKeyId = null } = options;
+
+  const where = {
+    tenantId,
+    accessType: {
+      [Op.in]: ['denied_permission', 'denied_quota'],
+    },
+  };
+
+  if (apiKeyId) {
+    where.apiKeyId = apiKeyId;
+  }
+
+  const logs = await ApiKeyAccessLog.findAll({
+    where,
+    include: [
+      {
+        model: ApiKey,
+        attributes: ['id', 'name', 'keyPrefix'],
+        required: false,
+      },
+    ],
+    order: [['timestamp', 'DESC']],
+    limit,
+    raw: true,
+    nest: true,
+  });
+
+  return logs.map(log => ({
+    id: log.id,
+    timestamp: log.timestamp,
+    apiKeyId: log.apiKeyId,
+    apiKeyName: log.ApiKey?.name || '未知密钥',
+    keyPrefix: log.keyPrefix,
+    eventType: log.accessType === 'denied_permission' ? 'unauthorized' : 'quota_exceeded',
+    eventTypeLabel: log.accessType === 'denied_permission' ? '越权尝试' : '配额超限',
+    ipAddress: log.ipAddress,
+    resource: log.resource,
+    action: log.action,
+    deniedReason: log.deniedReason,
+  }));
+}
+
+export async function getApiKeys24hCallCount(tenantId, apiKeyIds = []) {
+  const now = new Date();
+  const startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const where = {
+    tenantId,
+    timestamp: {
+      [Op.gte]: startTime,
+      [Op.lte]: now,
+    },
+  };
+
+  if (apiKeyIds && apiKeyIds.length > 0) {
+    where.apiKeyId = { [Op.in]: apiKeyIds };
+  }
+
+  const results = await MeteringEvent.findAll({
+    where,
+    attributes: [
+      'apiKeyId',
+      [sequelize.fn('COUNT', sequelize.col('id')), 'callCount'],
+    ],
+    group: ['apiKeyId'],
+    raw: true,
+  });
+
+  return results.reduce((acc, row) => {
+    if (row.apiKeyId) {
+      acc[row.apiKeyId] = parseInt(row.callCount);
+    }
+    return acc;
+  }, {});
+}
+
 async function clearApiKeyCache(id) {
   try {
     await redis.del(`api_key:${id}`);
@@ -656,6 +838,9 @@ export default {
   logAccess,
   listAccessLogs,
   getKeyUsageStats,
+  getApiKeyUsageStats,
+  getAnomalyEvents,
+  getApiKeys24hCallCount,
   checkExpiredRotations,
   checkExpiredKeys,
   hashApiKey,

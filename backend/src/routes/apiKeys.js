@@ -8,6 +8,9 @@ import {
   rotateApiKey,
   listAccessLogs,
   getKeyUsageStats,
+  getApiKeyUsageStats,
+  getAnomalyEvents,
+  getApiKeys24hCallCount,
   MAX_KEYS_PER_TENANT,
 } from '../services/apiKeyService.js';
 import { ApiKeyPermission } from '../models/index.js';
@@ -26,14 +29,56 @@ export default async function apiKeyRoutes(fastify) {
         offset: (parseInt(page) - 1) * parseInt(pageSize),
       });
 
+      const keyIds = result.data.map(k => k.id);
+      const callCounts = await getApiKeys24hCallCount(tenantId, keyIds);
+
+      const dataWithCallCount = result.data.map(key => ({
+        ...key,
+        callCount24h: callCounts[key.id] || 0,
+      }));
+
       return {
         success: true,
-        data: result.data,
+        data: dataWithCallCount,
         total: result.total,
         page: parseInt(page),
         pageSize: parseInt(pageSize),
         maxKeysPerTenant: MAX_KEYS_PER_TENANT,
       };
+    } catch (error) {
+      return reply.status(400).send({ success: false, message: error.message });
+    }
+  });
+
+  fastify.get('/api/tenants/:tenantId/api-keys/usage-stats', { onRequest: [authenticate] }, async (request, reply) => {
+    const { tenantId } = request.params;
+    const { granularity = 'hour', days = 7, apiKeyIds } = request.query;
+
+    try {
+      const parsedKeyIds = apiKeyIds ? (Array.isArray(apiKeyIds) ? apiKeyIds : apiKeyIds.split(',')) : [];
+      const stats = await getApiKeyUsageStats(tenantId, {
+        granularity,
+        days: parseInt(days),
+        apiKeyIds: parsedKeyIds,
+      });
+
+      return { success: true, data: stats };
+    } catch (error) {
+      return reply.status(400).send({ success: false, message: error.message });
+    }
+  });
+
+  fastify.get('/api/tenants/:tenantId/api-keys/anomaly-events', { onRequest: [authenticate] }, async (request, reply) => {
+    const { tenantId } = request.params;
+    const { limit = 20, apiKeyId } = request.query;
+
+    try {
+      const events = await getAnomalyEvents(tenantId, {
+        limit: parseInt(limit),
+        apiKeyId,
+      });
+
+      return { success: true, data: events };
     } catch (error) {
       return reply.status(400).send({ success: false, message: error.message });
     }

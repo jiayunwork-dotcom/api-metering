@@ -176,6 +176,12 @@ export const apiKeyApi = {
 
   getUsageStats: (tenantId, apiKeyId, params) =>
     request.get(`/tenants/${tenantId}/api-keys/${apiKeyId}/usage-stats`, { params }),
+
+  getApiKeyUsageStats: (tenantId, params) =>
+    request.get(`/tenants/${tenantId}/api-keys/usage-stats`, { params }),
+
+  getAnomalyEvents: (tenantId, params) =>
+    request.get(`/tenants/${tenantId}/api-keys/anomaly-events`, { params }),
 };
 
 export default request;

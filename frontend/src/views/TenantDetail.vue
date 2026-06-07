@@ -474,6 +474,13 @@
                     <span v-else>-</span>
                   </template>
                 </el-table-column>
+                <el-table-column label="24h调用量" width="120" align="right">
+                  <template #default="{ row }">
+                    <span :style="{ color: isQuotaWarning(row) ? '#F56C6C' : '' }">
+                      {{ row.callCount24h || 0 }}
+                    </span>
+                  </template>
+                </el-table-column>
                 <el-table-column label="最后使用" width="180">
                   <template #default="{ row }">
                     {{ formatDate(row.lastUsedAt) }}
@@ -499,6 +506,80 @@
                     </el-button>
                     <el-button type="info" link size="small" @click="handleRotateApiKey(row)">轮换</el-button>
                     <el-button type="danger" link size="small" @click="handleDeleteApiKey(row)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20" style="margin-top: 20px">
+          <el-col :span="16">
+            <el-card shadow="hover">
+              <template #header>
+                <div class="card-header-flex">
+                  <span>使用分析 - 调用趋势</span>
+                  <el-radio-group v-model="usageTimeRange" size="small" @change="loadUsageStats">
+                    <el-radio-button label="24h">最近24小时</el-radio-button>
+                    <el-radio-button label="7d">最近7天</el-radio-button>
+                    <el-radio-button label="30d">最近30天</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </template>
+              <div style="margin-bottom: 12px">
+                <el-checkbox-group v-model="selectedChartKeys" @change="renderKeyUsageChart">
+                  <el-checkbox
+                    v-for="key in topApiKeys"
+                    :key="key.id"
+                    :label="key.id"
+                    :disabled="selectedChartKeys.length >= 5 && !selectedChartKeys.includes(key.id)"
+                  >
+                    {{ key.name }}
+                  </el-checkbox>
+                </el-checkbox-group>
+                <span style="color: #909399; font-size: 12px; margin-left: 8px">最多选择5把密钥对比</span>
+              </div>
+              <div ref="usageTrendChartRef" class="chart" style="height: 350px"></div>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="hover">
+              <template #header>
+                <div class="card-header-flex">
+                  <span>异常事件</span>
+                  <el-button size="small" :icon="Refresh" link @click="loadAnomalyEvents">刷新</el-button>
+                </div>
+              </template>
+              <el-table :data="anomalyEvents" v-loading="anomalyLoading" max-height="380" size="small">
+                <el-table-column label="时间" width="160">
+                  <template #default="{ row }">
+                    {{ formatDate(row.timestamp) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="密钥名称" min-width="100" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    {{ row.apiKeyName }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.eventType === 'unauthorized' ? 'warning' : 'danger'" size="small">
+                      {{ row.eventTypeLabel }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="IP" width="110" prop="ipAddress" show-overflow-tooltip />
+                <el-table-column label="操作" width="60" align="center">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="row.apiKeyId"
+                      type="primary"
+                      link
+                      size="small"
+                      @click="handleViewAnomalyDetail(row)"
+                    >
+                      详情
+                    </el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -923,7 +1004,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Plus, Refresh, Sort } from '@element-plus/icons-vue';
@@ -976,6 +1057,15 @@ const apiKeyAccessLogs = ref([]);
 const accessLogLoading = ref(false);
 const permissionOptions = ref(null);
 const permissionTableData = ref([]);
+
+const usageTimeRange = ref('24h');
+const usageStatsData = ref(null);
+const selectedChartKeys = ref([]);
+const topApiKeys = ref([]);
+const anomalyEvents = ref([]);
+const anomalyLoading = ref(false);
+const usageTrendChartRef = ref(null);
+let usageTrendChart = null;
 
 const apiKeyDialogVisible = ref(false);
 const isEditApiKey = ref(false);
@@ -1108,6 +1198,11 @@ function formatDate(dateStr) {
   return dateStr ? new Date(dateStr).toLocaleString('zh-CN') : '-';
 }
 
+function isQuotaWarning(row) {
+  if (!row.quotaLimit || !row.callCount24h) return false;
+  return row.callCount24h >= row.quotaLimit * 0.8;
+}
+
 function getApiKeyStatusColor(status) {
   const colors = {
     active: 'success',
@@ -1187,6 +1282,13 @@ async function loadApiKeys() {
     if (res.success) {
       apiKeys.value = res.data || [];
       maxKeysPerTenant.value = res.maxKeysPerTenant || 10;
+
+      if (activeTab.value === 'api-keys') {
+        await Promise.all([
+          loadUsageStats(),
+          loadAnomalyEvents(),
+        ]);
+      }
     }
   } finally {
     apiKeyLoading.value = false;
@@ -1206,6 +1308,127 @@ async function loadApiKeyAccessLogs() {
     }
   } finally {
     accessLogLoading.value = false;
+  }
+}
+
+async function loadUsageStats() {
+  try {
+    const timeRangeMap = {
+      '24h': { days: 1, granularity: 'hour' },
+      '7d': { days: 7, granularity: 'day' },
+      '30d': { days: 30, granularity: 'day' },
+    };
+    const config = timeRangeMap[usageTimeRange.value] || timeRangeMap['7d'];
+
+    const topKeys = [...apiKeys.value]
+      .sort((a, b) => (b.callCount24h || 0) - (a.callCount24h || 0))
+      .slice(0, 5);
+    topApiKeys.value = topKeys;
+
+    if (selectedChartKeys.value.length === 0 && topKeys.length > 0) {
+      selectedChartKeys.value = topKeys.slice(0, Math.min(5, topKeys.length)).map(k => k.id);
+    }
+
+    const res = await apiKeyApi.getApiKeyUsageStats(tenantId, {
+      granularity: config.granularity,
+      days: config.days,
+      apiKeyIds: selectedChartKeys.value.join(','),
+    });
+    if (res.success) {
+      usageStatsData.value = res.data;
+      renderKeyUsageChart();
+    }
+  } catch (e) {}
+}
+
+async function loadAnomalyEvents() {
+  anomalyLoading.value = true;
+  try {
+    const res = await apiKeyApi.getAnomalyEvents(tenantId, { limit: 20 });
+    if (res.success) {
+      anomalyEvents.value = res.data || [];
+    }
+  } finally {
+    anomalyLoading.value = false;
+  }
+}
+
+function renderKeyUsageChart() {
+  if (!usageTrendChartRef.value || !usageStatsData.value) return;
+
+  if (!usageTrendChart) {
+    usageTrendChart = echarts.init(usageTrendChartRef.value);
+  }
+
+  const { timeBuckets, stats } = usageStatsData.value;
+  const filteredStats = stats.filter(s => selectedChartKeys.value.includes(s.apiKeyId));
+
+  const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399'];
+
+  const series = filteredStats.map((stat, index) => ({
+    name: stat.apiKeyName,
+    type: 'line',
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    data: stat.data.map(d => d.count),
+    lineStyle: {
+      width: 2,
+      color: colors[index % colors.length],
+    },
+    itemStyle: {
+      color: colors[index % colors.length],
+    },
+  }));
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+    },
+    legend: {
+      data: filteredStats.map(s => s.apiKeyName),
+      top: 0,
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: timeBuckets.map(t => {
+        if (usageTimeRange.value === '24h') {
+          return t.slice(11, 16);
+        }
+        return t.slice(5);
+      }),
+      axisLabel: {
+        rotate: 45,
+        fontSize: 10,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: '调用次数',
+      axisLabel: {
+        formatter: '{value}',
+      },
+    },
+    series,
+  };
+
+  usageTrendChart.setOption(option);
+}
+
+async function handleViewAnomalyDetail(row) {
+  const apiKey = apiKeys.value.find(k => k.id === row.apiKeyId);
+  if (apiKey) {
+    selectedApiKey.value = apiKey;
+    loadApiKeyAccessLogs();
   }
 }
 
@@ -1915,6 +2138,7 @@ async function handleTestWebhook(row) {
 
 function handleResize() {
   usageChart?.resize();
+  usageTrendChart?.resize();
 }
 
 function startStatusRefresh() {
@@ -1924,6 +2148,15 @@ function startStatusRefresh() {
     }
   }, 5000);
 }
+
+watch(activeTab, async (newTab) => {
+  if (newTab === 'api-keys' && apiKeys.value.length > 0) {
+    await Promise.all([
+      loadUsageStats(),
+      loadAnomalyEvents(),
+    ]);
+  }
+});
 
 onMounted(async () => {
   await Promise.all([
@@ -1945,6 +2178,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   usageChart?.dispose();
+  usageTrendChart?.dispose();
   if (statusRefreshTimer) {
     clearInterval(statusRefreshTimer);
   }
