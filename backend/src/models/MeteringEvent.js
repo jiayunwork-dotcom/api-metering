@@ -68,10 +68,6 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
   apiKeyId: {
     type: DataTypes.UUID,
     comment: '使用的API密钥ID',
-    references: {
-      model: 'api_keys',
-      key: 'id',
-    },
   },
 }, {
   tableName: 'metering_events',

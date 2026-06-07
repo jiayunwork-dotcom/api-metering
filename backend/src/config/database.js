@@ -6,6 +6,10 @@ dotenv.config();
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  define: {
+    underscored: true,
+    underscoredAll: true,
+  },
   pool: {
     max: 20,
     min: 0,

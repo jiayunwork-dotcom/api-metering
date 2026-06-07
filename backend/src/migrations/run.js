@@ -6,15 +6,20 @@ async function runMigrations() {
   try {
     console.log('Starting database migration...');
     
-    await sequelize.sync({ force: false });
-    console.log('Database tables created/updated successfully');
-    
     try {
       await apiKeyMigrationUp();
       console.log('API Key management migration completed');
     } catch (error) {
-      console.warn('API Key migration may have already run:', error.message);
+      if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+        console.warn('API Key migration may have already run:', error.message);
+      } else {
+        console.error('API Key migration failed:', error);
+        throw error;
+      }
     }
+    
+    await sequelize.sync({ force: false });
+    console.log('Database tables created/updated successfully');
     
     const adminCount = await User.count({ where: { username: 'admin' } });
     if (adminCount === 0) {

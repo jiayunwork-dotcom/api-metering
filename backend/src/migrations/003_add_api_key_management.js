@@ -6,13 +6,34 @@ export async function up() {
 
   try {
     await sequelize.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_keys_status') THEN
+          CREATE TYPE enum_api_keys_status AS ENUM ('active', 'disabled', 'expired', 'deleted');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_key_permissions_resource') THEN
+          CREATE TYPE enum_api_key_permissions_resource AS ENUM ('metering_event', 'usage_query', 'billing_view', 'rule_management', 'tenant_info', 'api_key_management');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_key_permissions_action') THEN
+          CREATE TYPE enum_api_key_permissions_action AS ENUM ('read', 'write');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_key_ip_whitelists_ip_type') THEN
+          CREATE TYPE enum_api_key_ip_whitelists_ip_type AS ENUM ('ipv4', 'ipv6');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_key_access_logs_access_type') THEN
+          CREATE TYPE enum_api_key_access_logs_access_type AS ENUM ('success', 'denied_invalid_key', 'denied_expired', 'denied_ip', 'denied_permission', 'denied_quota', 'denied_disabled');
+        END IF;
+      END $$;
+    `, { transaction });
+
+    await sequelize.query(`
       CREATE TABLE IF NOT EXISTS api_keys (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         tenant_id UUID NOT NULL REFERENCES tenants(id),
         name VARCHAR(100) NOT NULL,
         key_prefix VARCHAR(16) NOT NULL,
         key_hash VARCHAR(128) NOT NULL UNIQUE,
-        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        status enum_api_keys_status NOT NULL DEFAULT 'active',
         expires_at TIMESTAMP,
         last_used_at TIMESTAMP,
         rotation_grace_period INTEGER,
@@ -43,8 +64,8 @@ export async function up() {
       CREATE TABLE IF NOT EXISTS api_key_permissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         api_key_id UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
-        resource VARCHAR(50) NOT NULL,
-        action VARCHAR(20) NOT NULL,
+        resource enum_api_key_permissions_resource NOT NULL,
+        action enum_api_key_permissions_action NOT NULL,
         created_by UUID,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -62,7 +83,7 @@ export async function up() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         api_key_id UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
         ip_or_cidr VARCHAR(50) NOT NULL,
-        ip_type VARCHAR(10) NOT NULL DEFAULT 'ipv4',
+        ip_type enum_api_key_ip_whitelists_ip_type NOT NULL DEFAULT 'ipv4',
         comment VARCHAR(200),
         created_by UUID,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -82,7 +103,7 @@ export async function up() {
         api_key_id UUID REFERENCES api_keys(id),
         tenant_id UUID,
         key_prefix VARCHAR(16),
-        access_type VARCHAR(50) NOT NULL,
+        access_type enum_api_key_access_logs_access_type NOT NULL,
         resource VARCHAR(50),
         action VARCHAR(20),
         ip_address VARCHAR(45),

@@ -2,30 +2,31 @@ import sequelize from '../config/database.js';
 import { QueryTypes } from 'sequelize';
 
 async function addContactPhoneColumn() {
-  console.log('Checking if contactPhone column exists...');
+  console.log('Checking if contact_phone column exists...');
 
   try {
     const columns = await sequelize.query(
-      "SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants' AND column_name = 'contactPhone'",
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants' AND column_name IN ('contactPhone', 'contact_phone')",
       { type: QueryTypes.SELECT }
     );
 
     if (columns.length > 0) {
-      console.log('✅ contactPhone column already exists, skipping');
+      const existingCol = columns[0].column_name;
+      console.log(`✅ ${existingCol} column already exists, skipping`);
       process.exit(0);
     }
 
-    console.log('Adding contactPhone column to tenants table...');
+    console.log('Adding contact_phone column to tenants table...');
     
     await sequelize.query(`
       ALTER TABLE tenants 
-      ADD COLUMN "contactPhone" VARCHAR(20)
+      ADD COLUMN contact_phone VARCHAR(20)
     `);
 
-    console.log('✅ contactPhone column added successfully');
+    console.log('✅ contact_phone column added successfully');
 
     const existingRows = await sequelize.query(
-      "SELECT COUNT(*) as count FROM tenants WHERE \"contactPhone\" IS NULL OR \"contactPhone\" = ''",
+      "SELECT COUNT(*) as count FROM tenants WHERE contact_phone IS NULL OR contact_phone = ''",
       { type: QueryTypes.SELECT }
     );
 
