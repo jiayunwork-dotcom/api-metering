@@ -16,18 +16,10 @@ const MeteringEvent = sequelize.define('MeteringEvent', {
   tenantId: {
     type: DataTypes.UUID,
     allowNull: false,
-    references: {
-      model: 'tenants',
-      key: 'id',
-    },
   },
   apiInterfaceId: {
     type: DataTypes.UUID,
     allowNull: false,
-    references: {
-      model: 'api_interfaces',
-      key: 'id',
-    },
   },
   timestamp: {
     type: DataTypes.DATE(3),

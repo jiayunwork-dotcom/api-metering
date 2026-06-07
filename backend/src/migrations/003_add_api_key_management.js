@@ -5,9 +5,14 @@ export async function up() {
   const transaction = await sequelize.transaction();
 
   try {
+    console.log('Checking and creating prerequisite tables...');
+
     await sequelize.query(`
       DO $$
       BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_tenants_status') THEN
+          CREATE TYPE enum_tenants_status AS ENUM ('active', 'disabled');
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_keys_status') THEN
           CREATE TYPE enum_api_keys_status AS ENUM ('active', 'disabled', 'expired', 'deleted');
         END IF;
@@ -25,6 +30,77 @@ export async function up() {
         END IF;
       END $$;
     `, { transaction });
+
+    const tenantsExists = await sequelize.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'tenants'
+      )
+    `, { type: QueryTypes.SELECT, transaction });
+
+    if (!tenantsExists[0].exists) {
+      console.log('Creating tenants table...');
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS tenants (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(100) NOT NULL,
+          code VARCHAR(50) NOT NULL UNIQUE,
+          status enum_tenants_status NOT NULL DEFAULT 'active',
+          contact_email VARCHAR(100) NOT NULL,
+          contact_phone VARCHAR(20),
+          contact_name VARCHAR(50),
+          company_name VARCHAR(200),
+          tax_number VARCHAR(50),
+          address TEXT,
+          discount_rate DECIMAL(5,4) DEFAULT 0,
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          deleted_at TIMESTAMP
+        );
+      `, { transaction });
+      console.log('tenants table created');
+    } else {
+      console.log('tenants table already exists');
+    }
+
+    const apiInterfacesExists = await sequelize.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'api_interfaces'
+      )
+    `, { type: QueryTypes.SELECT, transaction });
+
+    if (!apiInterfacesExists[0].exists) {
+      console.log('Creating api_interfaces table...');
+      await sequelize.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_api_interfaces_status') THEN
+            CREATE TYPE enum_api_interfaces_status AS ENUM ('active', 'inactive');
+          END IF;
+        END $$;
+      `, { transaction });
+
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS api_interfaces (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(100) NOT NULL,
+          path VARCHAR(200) NOT NULL,
+          method VARCHAR(10) NOT NULL DEFAULT 'POST',
+          description TEXT,
+          status enum_api_interfaces_status NOT NULL DEFAULT 'active',
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          deleted_at TIMESTAMP,
+          UNIQUE(path, method)
+        );
+      `, { transaction });
+      console.log('api_interfaces table created');
+    } else {
+      console.log('api_interfaces table already exists');
+    }
 
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS api_keys (
