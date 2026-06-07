@@ -17,6 +17,7 @@ import redis from '../config/redis.js';
 import { reconciliationQueue } from '../config/queue.js';
 import { getMonthKey, getDayStart, getDayEnd, getEventId } from '../utils/dateUtils.js';
 import { getQuotaRedisKey } from './quotaService.js';
+import { checkAndTriggerAlert } from './reconciliationAlertService.js';
 import dayjs from 'dayjs';
 
 const DIMENSIONS = ['count', 'data_transfer', 'compute_time'];
@@ -129,6 +130,13 @@ export async function processReconciliationTask(job) {
     await task.save();
     
     console.log(`Reconciliation task ${taskId} completed: ${diffs.length} diffs found`);
+    
+    try {
+      await checkAndTriggerAlert(taskId);
+    } catch (alertError) {
+      console.error(`Failed to trigger alert for task ${taskId}:`, alertError);
+    }
+    
     return { success: true, diffCount: diffs.length };
     
   } catch (error) {

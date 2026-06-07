@@ -18,6 +18,9 @@
       <el-tab-pane label="审计日志" name="audit">
         <ReconciliationAudit @navigate="handleNavigate" />
       </el-tab-pane>
+      <el-tab-pane label="审批中心" name="approval">
+        <ReconciliationApproval @navigate="handleNavigate" />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -28,6 +31,7 @@ import ReconciliationTasks from '../components/reconciliation/ReconciliationTask
 import ReconciliationDiffs from '../components/reconciliation/ReconciliationDiffs.vue';
 import ReconciliationReplay from '../components/reconciliation/ReconciliationReplay.vue';
 import ReconciliationAudit from '../components/reconciliation/ReconciliationAudit.vue';
+import ReconciliationApproval from '../components/reconciliation/ReconciliationApproval.vue';
 
 const activeTab = ref('tasks');
 

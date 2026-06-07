@@ -8,6 +8,23 @@ import {
 } from '../services/reconciliationService.js';
 import { resolveDiff, batchResolveDiffs } from '../services/diffResolutionService.js';
 import { getDeadLetterEvents, replayEvents, getReplayProgress } from '../services/eventReplayService.js';
+import {
+  getAlertConfig,
+  updateAlertConfig,
+  testWebhook,
+  getAlertRecords,
+  markAlertRead,
+  markAllAlertsRead,
+  getUnreadAlertCount,
+} from '../services/reconciliationAlertService.js';
+import {
+  submitApproval,
+  processApproval,
+  getPendingApprovals,
+  getMyApprovals,
+  getApprovalDetail,
+  getApprovalList,
+} from '../services/reconciliationApprovalService.js';
 
 export default async function reconciliationRoutes(fastify, options) {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -390,6 +407,374 @@ export default async function reconciliationRoutes(fastify, options) {
       return reply.status(500).send({
         success: false,
         message: '获取审计日志失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/alert/config', async (request, reply) => {
+    try {
+      const config = await getAlertConfig();
+      return {
+        success: true,
+        data: config,
+      };
+    } catch (error) {
+      request.log.error('Get alert config failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取告警配置失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.put('/alert/config', async (request, reply) => {
+    try {
+      const config = await updateAlertConfig(request.body);
+      return {
+        success: true,
+        data: config,
+        message: '告警配置已更新',
+      };
+    } catch (error) {
+      request.log.error('Update alert config failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '更新告警配置失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/alert/webhook-test', async (request, reply) => {
+    try {
+      const { webhookUrl, headers, timeout } = request.body;
+      if (!webhookUrl) {
+        return reply.status(400).send({
+          success: false,
+          message: '请提供WebHook URL',
+        });
+      }
+      const result = await testWebhook(webhookUrl, headers, timeout);
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      request.log.error('Test webhook failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '测试WebHook失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/alert/records', async (request, reply) => {
+    try {
+      const { page = 1, pageSize = 20, channel, sendStatus, taskId, read } = request.query;
+      const offset = (page - 1) * pageSize;
+      
+      const result = await getAlertRecords({
+        channel,
+        sendStatus,
+        taskId,
+        read: read !== undefined ? (read === 'true' || read === true) : undefined,
+        limit: pageSize,
+        offset,
+      });
+      
+      return {
+        success: true,
+        data: result.rows,
+        total: result.count,
+        page,
+        pageSize,
+      };
+    } catch (error) {
+      request.log.error('Get alert records failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取告警记录失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/alert/unread-count', async (request, reply) => {
+    try {
+      const count = await getUnreadAlertCount();
+      return {
+        success: true,
+        data: { count },
+      };
+    } catch (error) {
+      request.log.error('Get unread alert count failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取未读告警数量失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/alert/records/:id/read', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      await markAlertRead(id);
+      return {
+        success: true,
+        message: '标记已读成功',
+      };
+    } catch (error) {
+      request.log.error('Mark alert read failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '标记已读失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/alert/records/read-all', async (request, reply) => {
+    try {
+      const result = await markAllAlertsRead();
+      return {
+        success: true,
+        data: result,
+        message: `已标记 ${result.updated} 条告警为已读`,
+      };
+    } catch (error) {
+      request.log.error('Mark all alerts read failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '标记全部已读失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/approvals', async (request, reply) => {
+    try {
+      const { diffId, strategy, reason, manualValue } = request.body;
+      const operator = request.user?.username || 'unknown';
+      
+      if (!diffId) {
+        return reply.status(400).send({
+          success: false,
+          message: '请选择差异记录',
+        });
+      }
+      
+      if (!['auto', 'manual', 'ignore', 'migrate'].includes(strategy)) {
+        return reply.status(400).send({
+          success: false,
+          message: '不支持的修正策略',
+        });
+      }
+      
+      if (!reason || !reason.trim()) {
+        return reply.status(400).send({
+          success: false,
+          message: '请填写修正原因',
+        });
+      }
+      
+      if (strategy === 'manual' && (manualValue === undefined || manualValue === null)) {
+        return reply.status(400).send({
+          success: false,
+          message: '手动修正必须提供修正值',
+        });
+      }
+      
+      const approval = await submitApproval(diffId, strategy, operator, {
+        reason,
+        manualValue,
+      });
+      
+      return {
+        success: true,
+        data: approval,
+        message: approval.approvalLevel === 'auto' 
+          ? '金额低于100元，已自动审批通过并执行修正' 
+          : '修正申请已提交，等待审批',
+      };
+    } catch (error) {
+      request.log.error('Submit approval failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: error.message || '提交审批失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/approvals/:id/approve', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { opinion } = request.body;
+      const operator = request.user?.username || 'unknown';
+      
+      const result = await processApproval(id, operator, 'approve', opinion);
+      
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      request.log.error('Approve failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: error.message || '审批失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.post('/approvals/:id/reject', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { opinion } = request.body;
+      const operator = request.user?.username || 'unknown';
+      
+      if (!opinion || !opinion.trim()) {
+        return reply.status(400).send({
+          success: false,
+          message: '请填写拒绝原因',
+        });
+      }
+      
+      const result = await processApproval(id, operator, 'reject', opinion);
+      
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      request.log.error('Reject failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: error.message || '拒绝失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/approvals/pending', async (request, reply) => {
+    try {
+      const { page = 1, pageSize = 20 } = request.query;
+      const offset = (page - 1) * pageSize;
+      const userId = request.user?.id;
+      
+      const result = await getPendingApprovals(userId, {
+        limit: pageSize,
+        offset,
+      });
+      
+      return {
+        success: true,
+        data: result.rows,
+        total: result.count,
+        page,
+        pageSize,
+      };
+    } catch (error) {
+      request.log.error('Get pending approvals failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取待审批列表失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/approvals/my', async (request, reply) => {
+    try {
+      const { page = 1, pageSize = 20 } = request.query;
+      const offset = (page - 1) * pageSize;
+      const userId = request.user?.id;
+      
+      if (!userId) {
+        return reply.status(401).send({
+          success: false,
+          message: '未授权访问',
+        });
+      }
+      
+      const result = await getMyApprovals(userId, {
+        limit: pageSize,
+        offset,
+      });
+      
+      return {
+        success: true,
+        data: result.rows,
+        total: result.count,
+        page,
+        pageSize,
+      };
+    } catch (error) {
+      request.log.error('Get my approvals failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取我的申请列表失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/approvals/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const approval = await getApprovalDetail(id);
+      
+      if (!approval) {
+        return reply.status(404).send({
+          success: false,
+          message: '审批记录不存在',
+        });
+      }
+      
+      return {
+        success: true,
+        data: approval,
+      };
+    } catch (error) {
+      request.log.error('Get approval detail failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取审批详情失败',
+        error: error.message,
+      });
+    }
+  });
+
+  fastify.get('/approvals', async (request, reply) => {
+    try {
+      const { page = 1, pageSize = 20, status, approvalLevel, diffId } = request.query;
+      const offset = (page - 1) * pageSize;
+      
+      const result = await getApprovalList({
+        status,
+        approvalLevel,
+        diffId,
+        limit: pageSize,
+        offset,
+      });
+      
+      return {
+        success: true,
+        data: result.rows,
+        total: result.count,
+        page,
+        pageSize,
+      };
+    } catch (error) {
+      request.log.error('Get approval list failed:', error);
+      return reply.status(500).send({
+        success: false,
+        message: '获取审批列表失败',
         error: error.message,
       });
     }

@@ -139,6 +139,22 @@ export const reconciliationApi = {
   getReplayProgress: (jobId) => request.get(`/reconciliation/replay/progress/${jobId}`),
   
   getAuditLogs: (params) => request.get('/reconciliation/audit-logs', { params }),
+  
+  getAlertConfig: () => request.get('/reconciliation/alert/config'),
+  updateAlertConfig: (data) => request.put('/reconciliation/alert/config', data),
+  testWebhook: (data) => request.post('/reconciliation/alert/webhook-test', data),
+  getAlertRecords: (params) => request.get('/reconciliation/alert/records', { params }),
+  getUnreadAlertCount: () => request.get('/reconciliation/alert/unread-count'),
+  markAlertRead: (id) => request.post(`/reconciliation/alert/records/${id}/read`),
+  markAllAlertsRead: () => request.post('/reconciliation/alert/records/read-all'),
+  
+  submitApproval: (data) => request.post('/reconciliation/approvals', data),
+  approveApproval: (id, data) => request.post(`/reconciliation/approvals/${id}/approve`, data),
+  rejectApproval: (id, data) => request.post(`/reconciliation/approvals/${id}/reject`, data),
+  getPendingApprovals: (params) => request.get('/reconciliation/approvals/pending', { params }),
+  getMyApprovals: (params) => request.get('/reconciliation/approvals/my', { params }),
+  getApprovalDetail: (id) => request.get(`/reconciliation/approvals/${id}`),
+  getApprovals: (params) => request.get('/reconciliation/approvals', { params }),
 };
 
 export default request;

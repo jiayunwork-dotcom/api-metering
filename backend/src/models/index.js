@@ -20,6 +20,9 @@ import WebhookConfig from './WebhookConfig.js';
 import ReconciliationTask from './ReconciliationTask.js';
 import ReconciliationDiff from './ReconciliationDiff.js';
 import ReconciliationAuditLog from './ReconciliationAuditLog.js';
+import ReconciliationAlertConfig from './ReconciliationAlertConfig.js';
+import ReconciliationAlertRecord from './ReconciliationAlertRecord.js';
+import ReconciliationApproval from './ReconciliationApproval.js';
 
 Tenant.hasMany(MeteringEvent, { foreignKey: 'tenantId' });
 MeteringEvent.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -86,6 +89,15 @@ ReconciliationDiff.belongsTo(ApiInterface, { foreignKey: 'apiInterfaceId' });
 ReconciliationAuditLog.belongsTo(ReconciliationTask, { foreignKey: 'taskId' });
 ReconciliationAuditLog.belongsTo(ReconciliationDiff, { foreignKey: 'diffId' });
 
+ReconciliationAlertRecord.belongsTo(ReconciliationTask, { foreignKey: 'taskId' });
+
+ReconciliationApproval.belongsTo(ReconciliationDiff, { foreignKey: 'diffId' });
+ReconciliationApproval.belongsTo(User, { foreignKey: 'submitterId', as: 'submitterUser' });
+ReconciliationApproval.belongsTo(User, { foreignKey: 'approver1Id', as: 'approver1User' });
+ReconciliationApproval.belongsTo(User, { foreignKey: 'approver2Id', as: 'approver2User' });
+
+ReconciliationDiff.hasMany(ReconciliationApproval, { foreignKey: 'diffId' });
+
 export {
   sequelize,
   Op,
@@ -112,4 +124,7 @@ export {
   ReconciliationTask,
   ReconciliationDiff,
   ReconciliationAuditLog,
+  ReconciliationAlertConfig,
+  ReconciliationAlertRecord,
+  ReconciliationApproval,
 };

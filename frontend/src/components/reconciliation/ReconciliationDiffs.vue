@@ -127,7 +127,7 @@
           <span class="text-red">{{ row.diffPercent?.toFixed(2) }}%</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="viewDiffDetail(row)">
             详情
@@ -136,9 +136,9 @@
             v-if="row.status === 'pending'"
             type="success"
             link
-            @click="showResolveDialog(row, 'auto')"
+            @click="showApprovalDialog(row, 'auto')"
           >
-            修正
+            提交修正申请
           </el-button>
         </template>
       </el-table-column>
@@ -212,7 +212,18 @@
         </div>
 
         <div v-if="currentDiff.status === 'pending'" class="action-section">
-          <el-divider content-position="left">修正操作</el-divider>
+          <el-alert
+            title="修正操作需要审批"
+            type="warning"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              <p>差异金额低于100元自动审批通过，100-1000元需要一级审批，超过1000元需要二级审批。</p>
+            </template>
+          </el-alert>
+          
+          <el-divider content-position="left">提交修正申请</el-divider>
           <el-radio-group v-model="resolveStrategy">
             <el-radio value="auto">自动修正（以原始事件为准）</el-radio>
             <el-radio value="manual">手动输入修正值</el-radio>
@@ -249,8 +260,8 @@
             </el-form-item>
           </el-form>
           <div class="action-buttons">
-            <el-button type="primary" @click="submitResolve" :loading="resolving">
-              确认修正
+            <el-button type="primary" @click="submitApproval" :loading="submitting">
+              提交修正申请
             </el-button>
           </div>
         </div>
@@ -317,6 +328,7 @@ import dayjs from 'dayjs';
 
 const loading = ref(false);
 const resolving = ref(false);
+const submitting = ref(false);
 const diffList = ref([]);
 const currentDiff = ref(null);
 const selectedDiffs = ref([]);
@@ -421,10 +433,39 @@ function showResolveDialog(row, strategy) {
   resolveStrategy.value = strategy;
 }
 
+function showApprovalDialog(row, strategy) {
+  viewDiffDetail(row);
+  resolveStrategy.value = strategy;
+}
+
 function showBatchResolveDialog(strategy) {
   batchStrategy.value = strategy;
   batchReason.value = '';
   batchDialogVisible.value = true;
+}
+
+async function submitApproval() {
+  if (!resolveReason.value.trim()) {
+    ElMessage.warning('请输入修正原因');
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    const res = await reconciliationApi.submitApproval({
+      diffId: currentDiff.value.id,
+      strategy: resolveStrategy.value,
+      reason: resolveReason.value,
+      manualValue: resolveStrategy.value === 'manual' ? manualValue.value : undefined,
+    });
+    if (res.success) {
+      ElMessage.success(res.message);
+      detailDialogVisible.value = false;
+      loadDiffs();
+    }
+  } finally {
+    submitting.value = false;
+  }
 }
 
 async function submitResolve() {

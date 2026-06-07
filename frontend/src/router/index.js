@@ -78,6 +78,12 @@ const routes = [
         component: () => import('../views/Reconciliation.vue'),
         meta: { title: '数据对账', icon: 'Check' },
       },
+      {
+        path: 'system-config',
+        name: 'SystemConfig',
+        component: () => import('../views/SystemConfig.vue'),
+        meta: { title: '系统配置', icon: 'Tools' },
+      },
     ],
   },
 ];
