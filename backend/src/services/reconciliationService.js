@@ -311,8 +311,8 @@ async function getEventSumsWithSnapshot(tenantId, dayStart, dayEnd, tx) {
     attributes: [
       'apiInterfaceId',
       [fn('COUNT', col('id')), 'countSum'],
-      [fn('SUM', col('dataTransferMB')), 'dataTransferSum'],
-      [fn('SUM', col('computeSeconds')), 'computeTimeSum'],
+      [fn('SUM', literal('("requestSize" + "responseSize") / (1024 * 1024)')), 'dataTransferSum'],
+      [fn('SUM', literal('"duration" / 1000.0')), 'computeTimeSum'],
     ],
     group: ['apiInterfaceId'],
     raw: true,

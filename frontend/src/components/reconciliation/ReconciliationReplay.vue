@@ -405,11 +405,25 @@ function initWebSocket() {
   try {
     wsConnection = new WebSocket(wsUrl);
     
+    wsConnection.onopen = () => {
+      console.log('WebSocket connected successfully');
+      if (currentJobId.value) {
+        subscribeToJob(currentJobId.value);
+      }
+    };
+    
     wsConnection.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.jobId === currentJobId.value) {
-          updateProgressData(data);
+        const message = JSON.parse(event.data);
+        if (message.type === 'progress' && message.jobId === currentJobId.value) {
+          updateProgressData(message.data);
+        } else if (message.type === 'completed' && message.jobId === currentJobId.value) {
+          updateProgressData(message.data);
+        } else if (message.type === 'connected') {
+          console.log('WebSocket confirmed connection:', message.clientId);
+          if (currentJobId.value) {
+            subscribeToJob(currentJobId.value);
+          }
         }
       } catch (e) {
         console.error('WebSocket message parse error:', e);
@@ -419,8 +433,22 @@ function initWebSocket() {
     wsConnection.onerror = (error) => {
       console.warn('WebSocket connection failed, falling back to polling:', error);
     };
+    
+    wsConnection.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
   } catch (e) {
     console.warn('WebSocket init failed, falling back to polling:', e);
+  }
+}
+
+function subscribeToJob(jobId) {
+  if (wsConnection && wsConnection.readyState === 1) {
+    wsConnection.send(JSON.stringify({
+      type: 'subscribe',
+      jobId,
+    }));
+    console.log('Subscribed to job:', jobId);
   }
 }
 
@@ -518,6 +546,7 @@ function startProgressTracking() {
   });
   progressDialogVisible.value = true;
   
+  subscribeToJob(currentJobId.value);
   pollProgress();
   progressPollTimer = setInterval(pollProgress, 2000);
 }

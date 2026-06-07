@@ -1,7 +1,28 @@
 import { WebSocketServer } from 'ws';
+import { URL } from 'url';
 
 let wss = null;
+let serverInstance = null;
 const clients = new Map();
+
+function handleUpgrade(request, socket, head) {
+  try {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const pathname = url.pathname;
+    
+    if (pathname !== '/ws/replay') {
+      socket.destroy();
+      return;
+    }
+    
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } catch (error) {
+    console.error('WebSocket upgrade error:', error);
+    socket.destroy();
+  }
+}
 
 export function initReplaySocket(server) {
   if (wss) {
@@ -9,7 +30,11 @@ export function initReplaySocket(server) {
     return wss;
   }
   
-  wss = new WebSocketServer({ server, path: '/ws/replay' });
+  serverInstance = server;
+  
+  wss = new WebSocketServer({ noServer: true });
+  
+  server.on('upgrade', handleUpgrade);
   
   wss.on('connection', (ws, request) => {
     const clientId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -27,10 +52,12 @@ export function initReplaySocket(server) {
         handleClientMessage(clientId, data);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: 'Invalid message format',
-        }));
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Invalid message format',
+          }));
+        }
       }
     });
     
@@ -44,14 +71,16 @@ export function initReplaySocket(server) {
       clients.delete(clientId);
     });
     
-    ws.send(JSON.stringify({
-      type: 'connected',
-      clientId,
-      message: 'Connected to replay progress server',
-    }));
+    if (ws.readyState === 1) {
+      ws.send(JSON.stringify({
+        type: 'connected',
+        clientId,
+        message: 'Connected to replay progress server',
+      }));
+    }
   });
   
-  console.log('WebSocket server initialized for replay progress');
+  console.log('WebSocket server initialized for replay progress on /ws/replay');
   return wss;
 }
 
@@ -146,12 +175,16 @@ export function getConnectedClients() {
 }
 
 export function closeReplaySocket() {
+  if (serverInstance) {
+    serverInstance.removeListener('upgrade', handleUpgrade);
+    serverInstance = null;
+  }
   if (wss) {
     wss.close();
     wss = null;
-    clients.clear();
-    console.log('WebSocket server closed');
   }
+  clients.clear();
+  console.log('WebSocket server closed');
 }
 
 export default {
